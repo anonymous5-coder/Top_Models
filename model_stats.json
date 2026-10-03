@@ -1,0 +1,17 @@
+{
+  "meta-llama/llama-3.1-8b-instruct:free": {
+    "intelligence_index": 85.4,
+    "coding_index": 72.1,
+    "agentic_index": 68.9
+  },
+  "google/gemma-2-9b-it:free": {
+    "intelligence_index": 82.0,
+    "coding_index": 75.5,
+    "agentic_index": 65.0
+  },
+  "default": {
+    "intelligence_index": 50.0,
+    "coding_index": 50.0,
+    "agentic_index": 50.0
+  }
+}

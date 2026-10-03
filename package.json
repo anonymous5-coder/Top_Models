@@ -1,0 +1,21 @@
+{
+  "name": "top-models-dashboard",
+  "version": "1.0.0",
+  "description": "Ranked Matrix Dashboard for top AI models with a browser and CLI interface.",
+  "main": "core.js",
+  "type": "module",
+  "bin": {
+    "models": "./cli.js"
+  },
+  "files": [
+    "core.js",
+    "cli.js",
+    "index.html",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "python3 -m http.server 8080"
+  },
+  "author": "",
+  "license": "ISC"
+}

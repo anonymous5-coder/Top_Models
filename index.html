@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top Models Ranked Matrix</title>
+    <style>
+        :root { --bg: #121212; --text: #e0e0e0; --border: #333; --hover: #1e1e1e; --accent: #4caf50; --ext-bg: #1a252c; }
+        body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 10px; background: var(--bg); color: var(--text); font-size: 14px; }
+        .header { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
+        h1 { margin: 0; font-size: 18px; text-align: center; }
+        #status { font-size: 12px; color: #888; text-align: center; min-height: 20px; }
+        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; min-width: 900px; }
+        th, td { border: 1px solid var(--border); padding: 8px; text-align: left; vertical-align: top; width: 16%; }
+        th { background: #000; position: sticky; top: 0; z-index: 10; font-weight: bold; }
+        .extend-btn { background: #2c3e50; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .extend-btn:hover { background: #34495e; }
+        .extended-row { background: var(--ext-bg); }
+        .extended-row td { color: #8bb4ff; font-weight: 500; vertical-align: middle; }
+        .val-missing { color: #555; }
+        .model-name { font-weight: 600; font-size: 12px; word-break: break-all; display: block; margin-bottom: 6px; color: #fff; }
+        .cell-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; border-top: 1px solid #333; padding-top: 4px; }
+        .primary-val { font-size: 13px; font-weight: bold; color: var(--accent); }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Ranked Matrix Dashboard</h1>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
+            <input type="password" id="api-key" placeholder="Paste OpenRouter API Key Here..." style="padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: #000; color: #fff; width: 100%; box-sizing: border-box;" />
+            <a href="https://openrouter.ai/workspaces/default/keys" target="_blank" style="color: #8bb4ff; font-size: 11px; text-decoration: none;">Get your OpenRouter API Key here</a>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start;">
+            <button id="refresh-btn" style="background: var(--accent); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; height: 35px;">Refresh</button>
+            <button id="refresh-refusal-btn" style="background: #e67e22; color: #fff; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; height: 35px;">Refresh Refusal Rates</button>
+            <button id="export-btn" style="background: #9b59b6; color: #fff; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; height: 35px;">Export Data</button>
+        </div>
+    </div>
+    <div id="status">Waiting to start...</div>
+</div>
+
+<div class="table-wrapper">
+    <table id="models-table">
+        <thead id="table-head">
+            <tr>
+                <th>Context Window</th>
+                <th>Thinking</th>
+                <th>Coding</th>
+                <th>Agentic</th>
+                <th>Summarizer</th>
+                <th>Refusal Rates</th>
+            </tr>
+        </thead>
+        <tbody id="table-body">
+            <!-- Matrix injected by JS -->
+        </tbody>
+    </table>
+</div>
+
+<script type="module">
+    import { fetchData, refreshRefusalRates } from './core.js';
+
+    // --- STATE MANAGEMENT ---
+    const appState = {
+        rankedColumns: [[], [], [], [], [], []],
+        expanded: { rowIndex: null, colIndex: null },
+        parsedModels: [],
+        isFetching: false,
+        isFetchingRates: false
+    };
+
+    const browserStorageAdapter = {
+        getItem: (key) => localStorage.getItem(key),
+        setItem: (key, val) => localStorage.setItem(key, val)
+    };
+
+    // Restore cached models if they exist
+    const cachedRanked = browserStorageAdapter.getItem('cached_rankedColumns');
+    const cachedParsed = browserStorageAdapter.getItem('cached_parsedModels');
+    if (cachedRanked && cachedParsed) {
+        try {
+            appState.rankedColumns = JSON.parse(cachedRanked);
+            appState.parsedModels = JSON.parse(cachedParsed);
+            renderTable();
+        } catch(e) {}
+    }
+
+    // --- DOM MANIPULATION ---
+    function formatVal(val, isPct = false) {
+        if (val === null || val === undefined || isNaN(val) || val === -999999) return '<span class="val-missing">-</span>';
+        if (isPct) return val.toFixed(2) + '%';
+        if (val > 1000) return val.toLocaleString();
+        return typeof val === 'number' && val % 1 !== 0 ? val.toFixed(2) : val;
+    }
+
+    function getPrimaryVal(model, colIndex) {
+        if (!model) return '<span class="val-missing">-</span>';
+        let raw;
+        switch(colIndex) {
+            case 0: raw = model.context_length; break;
+            case 1: raw = model.intelligence_index; break;
+            case 2: raw = model.coding_index; break;
+            case 3: raw = model.agentic_index; break;
+            case 4: raw = model.max_completion_tokens; break;
+            case 5: raw = model.refusal_rate; break;
+        }
+        return formatVal(raw, colIndex === 5);
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('table-body');
+        const thead = document.getElementById('table-head').querySelector('tr');
+        
+        if (appState.expanded.rowIndex !== null) {
+            if (thead.children.length === 6) {
+                const thMod = document.createElement('th'); thMod.innerText = 'Modalities';
+                const thUp = document.createElement('th'); thUp.innerText = 'Uptime';
+                const thLat = document.createElement('th'); thLat.innerText = 'Latency';
+                thead.appendChild(thMod);
+                thead.appendChild(thUp);
+                thead.appendChild(thLat);
+            }
+        } else {
+            while (thead.children.length > 6) {
+                thead.removeChild(thead.lastChild);
+            }
+        }
+
+        const frag = document.createDocumentFragment();
+        
+        let maxRows = 0;
+        appState.rankedColumns.forEach(col => {
+            if (col.length > maxRows) maxRows = col.length;
+        });
+
+        for (let r = 0; r < maxRows; r++) {
+            const tr = document.createElement('tr');
+            tr.id = `rank-row-${r}`;
+            
+            for (let c = 0; c < 6; c++) {
+                const td = document.createElement('td');
+                const model = appState.rankedColumns[c][r];
+                
+                if (model) {
+                    const isExpanded = (appState.expanded.rowIndex === r && appState.expanded.colIndex === c);
+                    const btnText = isExpanded ? 'Collapse' : 'Extend';
+                    const valToDisplay = getPrimaryVal(model, c);
+                    
+                    td.innerHTML = `
+                        <span class="model-name">${model.name}</span>
+                        <div class="cell-footer">
+                            <span class="primary-val">${valToDisplay}</span>
+                            <button class="extend-btn" onclick="toggleExtend(${r}, ${c})">${btnText}</button>
+                        </div>
+                    `;
+                } else {
+                    td.innerHTML = '<span class="val-missing">-</span>';
+                }
+                tr.appendChild(td);
+            }
+            frag.appendChild(tr);
+
+            if (appState.expanded.rowIndex === r) {
+                const expModel = appState.rankedColumns[appState.expanded.colIndex][r];
+                if (expModel) {
+                    const extTr = document.createElement('tr');
+                    extTr.className = 'extended-row';
+                    
+                    for(let c=0; c<6; c++) {
+                        const td = document.createElement('td');
+                        td.innerHTML = getPrimaryVal(expModel, c);
+                        extTr.appendChild(td);
+                    }
+                    
+                    const tdMod = document.createElement('td');
+                    tdMod.innerText = expModel.raw_modalities;
+                    extTr.appendChild(tdMod);
+                    
+                    const tdUp = document.createElement('td');
+                    tdUp.innerHTML = formatVal(expModel.uptime, true);
+                    extTr.appendChild(tdUp);
+                    
+                    const tdLat = document.createElement('td');
+                    tdLat.innerHTML = expModel.latency !== null ? formatVal(expModel.latency) + 'ms' : '<span class="val-missing">-</span>';
+                    extTr.appendChild(tdLat);
+                    
+                    frag.appendChild(extTr);
+                }
+            }
+        }
+
+        tbody.innerHTML = '';
+        tbody.appendChild(frag);
+    }
+
+    // --- INTERACTIONS ---
+    window.toggleExtend = function(r, c) {
+        if (appState.expanded.rowIndex === r && appState.expanded.colIndex === c) {
+            appState.expanded = { rowIndex: null, colIndex: null };
+        } else {
+            appState.expanded = { rowIndex: r, colIndex: c };
+        }
+        renderTable();
+    };
+
+    function showError(err) {
+        const errMsg = err.message || 'Unknown Error';
+        document.getElementById('status').innerHTML = `Error: ${errMsg} <button id="copy-err-btn" style="margin-left: 8px; padding: 2px 6px; font-size: 11px; cursor: pointer; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px;">Copy Error</button>`;
+        document.getElementById('copy-err-btn').addEventListener('click', function() {
+            navigator.clipboard.writeText(`Error: ${errMsg}`).then(() => {
+                this.innerText = 'Copied!';
+                setTimeout(() => { this.innerText = 'Copy Error'; }, 2000);
+            });
+        });
+    }
+
+    // --- BUTTON ACTIONS ---
+    document.getElementById('refresh-btn').addEventListener('click', async function() {
+        if (appState.isFetching) return;
+        const apiKey = document.getElementById('api-key').value.trim();
+        if (!apiKey) {
+            document.getElementById('status').innerText = "Please enter API Key to start fetching.";
+            return;
+        }
+        browserStorageAdapter.setItem('openRouterApiKey', apiKey);
+
+        appState.isFetching = true;
+        document.getElementById('status').innerText = "Fetching latest data...";
+        this.disabled = true;
+        this.innerText = "Refreshing...";
+
+        try {
+            const res = await fetchData(apiKey, browserStorageAdapter);
+            appState.parsedModels = res.parsedModels;
+            appState.rankedColumns = res.rankedColumns;
+            
+            browserStorageAdapter.setItem('cached_parsedModels', JSON.stringify(appState.parsedModels));
+            browserStorageAdapter.setItem('cached_rankedColumns', JSON.stringify(appState.rankedColumns));
+            
+            renderTable();
+            document.getElementById('status').innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
+        } catch (e) {
+            console.error(e);
+            showError(e);
+        } finally {
+            appState.isFetching = false;
+            this.disabled = false;
+            this.innerText = "Refresh";
+        }
+    });
+
+    document.getElementById('refresh-refusal-btn').addEventListener('click', async function() {
+        if (appState.isFetchingRates) return;
+        if (!appState.parsedModels || appState.parsedModels.length === 0) {
+            document.getElementById('status').innerText = "Fetch models first.";
+            return;
+        }
+        const apiKey = document.getElementById('api-key').value.trim();
+        if (!apiKey) {
+            document.getElementById('status').innerText = "Please enter API Key.";
+            return;
+        }
+
+        appState.isFetchingRates = true;
+        this.disabled = true;
+        this.innerText = "Estimating...";
+        document.getElementById('status').innerText = "Estimating refusal rates with LLM...";
+
+        try {
+            const res = await refreshRefusalRates(apiKey, appState.parsedModels, browserStorageAdapter);
+            appState.parsedModels = res.parsedModels;
+            appState.rankedColumns = res.rankedColumns;
+            
+            browserStorageAdapter.setItem('cached_parsedModels', JSON.stringify(appState.parsedModels));
+            browserStorageAdapter.setItem('cached_rankedColumns', JSON.stringify(appState.rankedColumns));
+            
+            renderTable();
+            document.getElementById('status').innerText = `Refusal rates updated: ${new Date().toLocaleTimeString()}`;
+        } catch(e) {
+            console.error(e);
+            showError(e);
+        } finally {
+            appState.isFetchingRates = false;
+            this.disabled = false;
+            this.innerText = "Refresh Refusal Rates";
+        }
+    });
+
+    document.getElementById('export-btn').addEventListener('click', function() {
+        if (!appState.rankedColumns[0] || appState.rankedColumns[0].length === 0) {
+            alert("No data to export. Please refresh first.");
+            return;
+        }
+        const dataStr = JSON.stringify(appState.rankedColumns, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'dashboard_data.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+
+    // --- INITIALIZATION ---
+    const savedKey = browserStorageAdapter.getItem('openRouterApiKey');
+    if (savedKey) {
+        document.getElementById('api-key').value = savedKey;
+    }
+
+    document.getElementById('api-key').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            browserStorageAdapter.setItem('openRouterApiKey', this.value.trim());
+            document.getElementById('refresh-btn').click();
+        }
+    });
+
+    document.getElementById('api-key').addEventListener('change', function () {
+        browserStorageAdapter.setItem('openRouterApiKey', this.value.trim());
+    });
+
+</script>
+</body>
+</html>
