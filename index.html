@@ -23,9 +23,33 @@
         .model-name { font-weight: 600; font-size: 12px; word-break: break-all; display: block; margin-bottom: 6px; color: #fff; }
         .cell-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; border-top: 1px solid #333; padding-top: 4px; }
         .primary-val { font-size: 13px; font-weight: bold; color: var(--accent); }
+        
+        #desktop-toggle-fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        body.desktop-view .table-wrapper {
+            min-width: 1200px;
+        }
     </style>
 </head>
 <body>
+
+<button id="desktop-toggle-fab" title="Toggle Desktop View">🖥️</button>
 
 <div class="header">
     <h1>Ranked Matrix Dashboard</h1>
@@ -290,21 +314,45 @@
         }
     });
 
-    document.getElementById('export-btn').addEventListener('click', function() {
+    document.getElementById('export-btn').addEventListener('click', async function() {
         if (!appState.rankedColumns[0] || appState.rankedColumns[0].length === 0) {
             alert("No data to export. Please refresh first.");
             return;
         }
         const dataStr = JSON.stringify(appState.rankedColumns, null, 2);
-        const blob = new Blob([dataStr], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'dashboard_data.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        
+        if (window.Capacitor?.isNativePlatform?.()) {
+            try {
+                const Filesystem = window.Capacitor.Plugins.Filesystem;
+                const Share = window.Capacitor.Plugins.Share;
+                
+                const writeResult = await Filesystem.writeFile({
+                    path: 'dashboard_data.json',
+                    data: dataStr,
+                    directory: 'DOCUMENTS',
+                    encoding: 'utf8'
+                });
+
+                await Share.share({
+                    title: 'Exported Dashboard Data',
+                    url: writeResult.uri,
+                    dialogTitle: 'Save Dashboard Data'
+                });
+            } catch (e) {
+                console.error("Native export error:", e);
+                alert("Failed to export on native device.");
+            }
+        } else {
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'dashboard_data.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
     });
 
     // --- INITIALIZATION ---
@@ -322,6 +370,23 @@
 
     document.getElementById('api-key').addEventListener('change', function () {
         browserStorageAdapter.setItem('openRouterApiKey', this.value.trim());
+    });
+
+    // Desktop View Toggle Logic
+    document.getElementById('desktop-toggle-fab').addEventListener('click', function() {
+        const isDesktop = document.body.classList.toggle('desktop-view');
+        if (isDesktop) {
+            const scale = window.innerWidth / 1200;
+            if (scale < 1) {
+                document.body.style.width = '1200px';
+                document.body.style.transform = `scale(${scale})`;
+                document.body.style.transformOrigin = 'top left';
+            }
+        } else {
+            document.body.style.width = '';
+            document.body.style.transform = '';
+            document.body.style.transformOrigin = '';
+        }
     });
 
     // PWA Service Worker Registration
