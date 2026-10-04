@@ -65,7 +65,7 @@ switch(command) {
                 const res = await fetchData(getApiKey(), storageAdapter);
                 storageAdapter.setItem('cached_rankedColumns', JSON.stringify(res.rankedColumns));
                 storageAdapter.setItem('cached_parsedModels', JSON.stringify(res.parsedModels));
-                console.log("Data refreshed successfully. Use 'top-models fetch' to copy JSON.");
+                console.log("Data refreshed successfully. Use 'models fetch' to copy JSON.");
             } catch (e) {
                 console.error("Error refreshing data:", e.message);
             }
@@ -77,7 +77,7 @@ switch(command) {
             try {
                 const parsedModelsStr = storageAdapter.getItem('cached_parsedModels');
                 if (!parsedModelsStr) {
-                    console.error("Error: No parsed models found. Please run 'top-models refresh' first.");
+                    console.error("Error: No parsed models found. Please run 'models refresh' first.");
                     process.exit(1);
                 }
                 const parsedModels = JSON.parse(parsedModelsStr);
@@ -86,7 +86,7 @@ switch(command) {
                 const res = await refreshRefusalRates(getApiKey(), parsedModels, storageAdapter);
                 storageAdapter.setItem('cached_rankedColumns', JSON.stringify(res.rankedColumns));
                 storageAdapter.setItem('cached_parsedModels', JSON.stringify(res.parsedModels));
-                console.log("Refusal rates updated successfully. Use 'top-models fetch' to copy JSON.");
+                console.log("Refusal rates updated successfully. Use 'models fetch' to copy JSON.");
             } catch (e) {
                 console.error("Error estimating refusal rates:", e.message);
             }
@@ -96,7 +96,7 @@ switch(command) {
     case 'fetch':
         const data = storageAdapter.getItem('cached_rankedColumns');
         if (!data) {
-            console.error("Error: No data found. Please run 'top-models refresh' first.");
+            console.error("Error: No data found. Please run 'models refresh' first.");
             process.exit(1);
         }
         exec(`echo '${data.replace(/'/g, "'\\''")}' | termux-clipboard-set`, (error) => {

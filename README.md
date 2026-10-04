@@ -14,8 +14,10 @@ A comprehensive, full-stack application to track, rank, and evaluate free AI mod
 # Clone or download the repository
 cd Top_Models
 
-# Make the CLI script executable
-chmod +x cli.js
+# Install globally to enable the 'models' CLI command
+npm link
+# OR if you prefer to install directly from the package:
+# npm install -g .
 ```
 
 ## Usage: Browser Dashboard
@@ -35,22 +37,22 @@ The Node.js CLI allows you to fetch, estimate, and export data directly from the
 
 1. **Enter your API Key** (Only needed once):
 ```bash
-node cli.js enter-key "YOUR_OPENROUTER_API_KEY"
+models keys "YOUR_OPENROUTER_API_KEY"
 ```
 
 2. **Refresh the data**:
 ```bash
-node cli.js refresh
+models refresh
 ```
 
 3. **Estimate Refusal Rates via LLM**:
 ```bash
-node cli.js estimate
+models estimate
 ```
 
 4. **Copy the Ranked Matrix JSON to your clipboard**:
 ```bash
-node cli.js fetch
+models fetch
 ```
 
 ## Security Note
