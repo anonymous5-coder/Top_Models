@@ -31,6 +31,15 @@ python3 -m http.server 8080
 2. Open your browser and navigate to `http://localhost:8080`.
 3. Paste your OpenRouter API Key into the input field and click **Refresh**.
 
+## Install as Mobile App (PWA)
+
+The dashboard is fully installable as a Progressive Web App (PWA) for a native mobile experience.
+
+1. Open `https://anonymous5-coder.github.io/Top_Models/` in Google Chrome on your Android device (or Safari on iOS).
+2. Tap the three-dot menu (or share button on iOS).
+3. Select **"Add to Home screen"** (or "Install app").
+4. Launch the dashboard directly from your home screen.
+
 ## Usage: Command Line Interface (CLI)
 
 The Node.js CLI allows you to fetch, estimate, and export data directly from the terminal without opening a browser. It uses `termux-clipboard-set` to copy output on Termux.

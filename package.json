@@ -11,6 +11,9 @@
     "core.js",
     "cli.js",
     "index.html",
+    "icon.svg",
+    "manifest.json",
+    "sw.js",
     "README.md"
   ],
   "scripts": {
