@@ -51,6 +51,16 @@ npm run build:web
 
 *Note:* Because the Android SDK and Gradle are not easily accessible within a native Termux environment, the final APK build is designed to be handled in the cloud via GitHub Actions.
 
+## Building the APK (Cloud)
+
+You can build the Android APK effortlessly on GitHub's servers using the pre-configured workflow:
+
+1. Push your code to GitHub.
+2. Go to the **Actions** tab on your repository.
+3. Select the **Build Android APK** workflow on the left sidebar.
+4. Click **Run workflow** (run it on the `main` branch).
+5. Once the build finishes successfully, download the `app-debug.apk` file from the **Artifacts** section at the bottom of the run page.
+
 ## Usage: Command Line Interface (CLI)
 
 The Node.js CLI allows you to fetch, estimate, and export data directly from the terminal without opening a browser. It uses `termux-clipboard-set` to copy output on Termux.
