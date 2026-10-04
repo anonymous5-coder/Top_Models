@@ -40,6 +40,17 @@ The dashboard is fully installable as a Progressive Web App (PWA) for a native m
 3. Select **"Add to Home screen"** (or "Install app").
 4. Launch the dashboard directly from your home screen.
 
+## Building for Android (Capacitor)
+
+The project is configured for native Android deployment via Capacitor.
+Before any Capacitor build step, you must synchronize the web assets to the `www/` folder:
+
+```bash
+npm run build:web
+```
+
+*Note:* Because the Android SDK and Gradle are not easily accessible within a native Termux environment, the final APK build is designed to be handled in the cloud via GitHub Actions.
+
 ## Usage: Command Line Interface (CLI)
 
 The Node.js CLI allows you to fetch, estimate, and export data directly from the terminal without opening a browser. It uses `termux-clipboard-set` to copy output on Termux.

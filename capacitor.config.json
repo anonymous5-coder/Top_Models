@@ -1,0 +1,8 @@
+{
+  "appId": "com.anonymous5coder.matrix",
+  "appName": "Ranked Matrix",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
