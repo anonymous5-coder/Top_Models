@@ -10,7 +10,7 @@ export async function runProviderPipeline(providerId, apiKey, storageAdapter) {
         throw new Error(`Unknown provider: ${providerId}`);
     }
 
-    const adapter = getAdapter(providerId);
+    const adapter = getAdapter(providerId) || meta.adapter;
     if (!adapter) {
         throw new Error(`Adapter for provider '${providerId}' is not yet registered.`);
     }
@@ -22,7 +22,7 @@ export async function runProviderPipeline(providerId, apiKey, storageAdapter) {
     const filteredModels = adapter.filter(rawData);
 
     // 3. Normalize into NormalizedModel instances
-    const parsedModels = adapter.normalize(filteredModels, storageAdapter);
+    const parsedModels = await adapter.normalize(filteredModels, storageAdapter, rawData);
 
     // 4. Hierarchical Ranking across columns 0..5
     const rankedColumns = [[], [], [], [], [], []];
@@ -30,5 +30,13 @@ export async function runProviderPipeline(providerId, apiKey, storageAdapter) {
         rankedColumns[c] = sortModelsForColumn(parsedModels, c);
     }
 
-    return { parsedModels, rankedColumns };
+    let refusalRates = parsedModels.refusalRates || {};
+    if (Object.keys(refusalRates).length === 0 && storageAdapter) {
+        const cachedRates = storageAdapter.getItem('cached_refusalRates');
+        if (cachedRates) {
+            try { refusalRates = JSON.parse(cachedRates); } catch (e) {}
+        }
+    }
+
+    return { parsedModels, rankedColumns, refusalRates };
 }

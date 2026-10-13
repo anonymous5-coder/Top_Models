@@ -209,43 +209,27 @@
                 </li>
                 <li class="provider-item" data-provider="gemini">
                     <span><span class="key-indicator" id="key-ind-gemini">⚪</span>Google Gemini</span>
-                    <span class="badge-tag">Coming soon</span>
                 </li>
                 <li class="provider-item" data-provider="groq">
                     <span><span class="key-indicator" id="key-ind-groq">⚪</span>Groq</span>
-                    <span class="badge-tag">Coming soon</span>
-                </li>
-                <li class="provider-item" data-provider="cerebras">
-                    <span><span class="key-indicator" id="key-ind-cerebras">⚪</span>Cerebras</span>
-                    <span class="badge-tag">Coming soon</span>
                 </li>
                 <li class="provider-item" data-provider="mistral">
                     <span><span class="key-indicator" id="key-ind-mistral">⚪</span>Mistral</span>
-                    <span class="badge-tag">Coming soon</span>
                 </li>
                 <li class="provider-item" data-provider="nvidia">
                     <span><span class="key-indicator" id="key-ind-nvidia">⚪</span>NVIDIA NIM</span>
-                    <span class="badge-tag">Coming soon</span>
                 </li>
                 <li class="provider-item" data-provider="cohere">
                     <span><span class="key-indicator" id="key-ind-cohere">⚪</span>Cohere</span>
-                    <span class="badge-tag">Coming soon</span>
                 </li>
                 <li class="provider-item" data-provider="modelscope">
                     <span><span class="key-indicator" id="key-ind-modelscope">⚪</span>ModelScope</span>
-                    <span class="badge-tag">Coming soon</span>
                 </li>
                 <li class="provider-item" data-provider="sambanova">
                     <span><span class="key-indicator" id="key-ind-sambanova">⚪</span>SambaNova</span>
-                    <span class="badge-tag">Coming soon</span>
                 </li>
                 <li class="provider-item" data-provider="llm7">
                     <span><span class="key-indicator" id="key-ind-llm7">⚪</span>LLM7.io</span>
-                    <span class="badge-tag">Coming soon</span>
-                </li>
-                <li class="provider-item" data-provider="bytez">
-                    <span><span class="key-indicator" id="key-ind-bytez">⚪</span>Bytez</span>
-                    <span class="badge-tag">Coming soon</span>
                 </li>
             </ul>
         </div>
@@ -256,19 +240,15 @@
             <ul class="provider-list" id="group-b-list">
                 <li class="provider-item" data-provider="cloudflare">
                     <span><span class="key-indicator" id="key-ind-cloudflare">⚪</span>Cloudflare Workers AI</span>
-                    <span class="badge-tag">Coming soon</span>
                 </li>
                 <li class="provider-item" data-provider="ollama">
                     <span><span class="key-indicator" id="key-ind-ollama">⚪</span>Ollama Cloud</span>
-                    <span class="badge-tag">Coming soon</span>
                 </li>
                 <li class="provider-item" data-provider="ovh">
                     <span><span class="key-indicator" id="key-ind-ovh">⚪</span>OVHcloud AI Endpoints</span>
-                    <span class="badge-tag">Coming soon</span>
                 </li>
                 <li class="provider-item" data-provider="watsonx">
                     <span><span class="key-indicator" id="key-ind-watsonx">⚪</span>IBM watsonx.ai</span>
-                    <span class="badge-tag">Coming soon</span>
                 </li>
             </ul>
         </div>
@@ -316,7 +296,7 @@
 </div>
 
 <script type="module">
-    import { fetchData, refreshRefusalRates, PROVIDER_REGISTRY } from './core.js?v=0A';
+    import { fetchData, refreshRefusalRates, PROVIDER_REGISTRY } from './core.js?v=0C';
 
     const browserStorageAdapter = {
         getItem: (key) => localStorage.getItem(key),
@@ -355,6 +335,26 @@
                 const hasKey = !!getProviderKey(id);
                 ind.innerText = hasKey ? '🟢' : '⚪';
                 ind.title = hasKey ? 'API Key Configured' : 'No Key';
+            }
+        });
+    }
+
+    function updateSidebarBadges() {
+        document.querySelectorAll('.provider-item[data-provider]').forEach(li => {
+            const providerId = li.getAttribute('data-provider');
+            const p = PROVIDER_REGISTRY[providerId];
+            let badge = li.querySelector('.badge-tag');
+            if (!p || !p.implemented) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'badge-tag';
+                    badge.innerText = 'Coming soon';
+                    li.appendChild(badge);
+                }
+            } else {
+                if (badge) {
+                    badge.remove();
+                }
             }
         });
     }
@@ -424,11 +424,12 @@
             if (p.id === 'openrouter') {
                 document.getElementById('status').innerText = "Waiting to start...";
             } else {
-                document.getElementById('status').innerText = `${p.name} integration coming soon in Sub-phase 0B/0C.`;
+                document.getElementById('status').innerText = `${p.name} integration coming soon in an upcoming milestone.`;
             }
         }
 
         updateKeyIndicators();
+        updateSidebarBadges();
     }
 
     // --- DOM MANIPULATION ---
@@ -597,7 +598,7 @@
         const p = PROVIDER_REGISTRY[currentP];
 
         if (currentP !== 'openrouter') {
-            document.getElementById('status').innerText = `${p?.name || currentP} adapter coming soon in Sub-phase 0B/0C.`;
+            document.getElementById('status').innerText = `${p?.name || currentP} adapter coming soon in an upcoming milestone.`;
             return;
         }
 
@@ -721,6 +722,7 @@
 
     // --- INITIALIZATION ---
     updateProviderUI();
+    updateSidebarBadges();
 
     document.getElementById('api-key').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
