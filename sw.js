@@ -1,4 +1,4 @@
-const CACHE_NAME = 'matrix-cache-v1';
+const CACHE_NAME = 'matrix-cache-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -32,13 +32,28 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Route 1: API Calls -> Network-Only
-  if (url.hostname.includes('openrouter.ai')) {
+  // Route 1: API / External Calls -> Network-Only
+  if (url.origin !== self.location.origin) {
     event.respondWith(fetch(event.request));
     return;
   }
 
-  // Route 2: Local JSON Data -> Network-First
+  // Route 2: JavaScript Files (e.g. core.js) -> Network-First
+  if (url.pathname.endsWith('.js')) {
+    event.respondWith(
+      fetch(event.request).then(response => {
+        return caches.open(CACHE_NAME).then(cache => {
+          cache.put(event.request, response.clone());
+          return response;
+        });
+      }).catch(() => {
+        return caches.match(event.request);
+      })
+    );
+    return;
+  }
+
+  // Route 3: Local JSON Data -> Network-First
   if (url.pathname.endsWith('.json') && !url.pathname.endsWith('manifest.json')) {
     event.respondWith(
       fetch(event.request).then(response => {
@@ -53,7 +68,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Route 3: Static Assets -> Cache-First
+  // Route 4: Static Assets -> Cache-First
   event.respondWith(
     caches.match(event.request).then(response => {
       return response || fetch(event.request).then(fetchResponse => {

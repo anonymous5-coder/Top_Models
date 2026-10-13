@@ -45,18 +45,248 @@
         body.desktop-view .table-wrapper {
             min-width: 1200px;
         }
+
+        /* Header Row with Hamburger */
+        .header-top-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .hamburger-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 10px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 32px;
+        }
+        .hamburger-btn:hover { background: var(--hover); }
+        .provider-badge {
+            font-size: 11px;
+            background: #1f2937;
+            color: #60a5fa;
+            border: 1px solid #374151;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        /* Side Panel Backdrop */
+        .side-panel-backdrop {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.65);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            z-index: 1500;
+        }
+        .side-panel-backdrop.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Slide-in Side Panel Drawer */
+        .side-panel {
+            position: fixed;
+            top: 0; left: 0;
+            width: 320px;
+            max-width: 85vw;
+            height: 100vh;
+            background: #161616;
+            border-right: 1px solid var(--border);
+            box-shadow: 4px 0 16px rgba(0, 0, 0, 0.7);
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 1600;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+        .side-panel.open {
+            transform: translateX(0);
+        }
+        .side-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .side-panel-header h2 { margin: 0; font-size: 16px; color: #fff; }
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 4px;
+        }
+        .close-btn:hover { color: #fff; }
+
+        .side-panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .group-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+        .provider-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+        .provider-item {
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            transition: background 0.15s ease;
+            user-select: none;
+        }
+        .provider-item:hover { background: var(--hover); }
+        .provider-item.active {
+            background: #2563eb;
+            color: #fff;
+            font-weight: 600;
+        }
+        .badge-tag {
+            font-size: 10px;
+            padding: 2px 6px;
+            background: #262626;
+            border: 1px solid #333;
+            border-radius: 4px;
+            color: #888;
+            font-weight: normal;
+        }
+        .provider-item.active .badge-tag {
+            background: #1d4ed8;
+            color: #dbeafe;
+            border-color: #3b82f6;
+        }
+        .key-indicator {
+            font-size: 9px;
+            margin-right: 6px;
+        }
     </style>
 </head>
 <body>
 
+<!-- Backdrop -->
+<div id="side-panel-backdrop" class="side-panel-backdrop"></div>
+
+<!-- Slide-in Side Panel (Provider Switcher) -->
+<nav id="side-panel" class="side-panel" aria-label="Provider Switcher">
+    <div class="side-panel-header">
+        <h2>Providers</h2>
+        <button id="close-panel-btn" class="close-btn" aria-label="Close">&times;</button>
+    </div>
+    <div class="side-panel-content">
+        <!-- Group A: OpenAI-compatible -->
+        <div class="provider-group">
+            <div class="group-title">Group A (OpenAI-Compatible)</div>
+            <ul class="provider-list" id="group-a-list">
+                <li class="provider-item active" data-provider="openrouter">
+                    <span><span class="key-indicator" id="key-ind-openrouter">⚪</span>OpenRouter</span>
+                </li>
+                <li class="provider-item" data-provider="gemini">
+                    <span><span class="key-indicator" id="key-ind-gemini">⚪</span>Google Gemini</span>
+                    <span class="badge-tag">Coming soon</span>
+                </li>
+                <li class="provider-item" data-provider="groq">
+                    <span><span class="key-indicator" id="key-ind-groq">⚪</span>Groq</span>
+                    <span class="badge-tag">Coming soon</span>
+                </li>
+                <li class="provider-item" data-provider="cerebras">
+                    <span><span class="key-indicator" id="key-ind-cerebras">⚪</span>Cerebras</span>
+                    <span class="badge-tag">Coming soon</span>
+                </li>
+                <li class="provider-item" data-provider="mistral">
+                    <span><span class="key-indicator" id="key-ind-mistral">⚪</span>Mistral</span>
+                    <span class="badge-tag">Coming soon</span>
+                </li>
+                <li class="provider-item" data-provider="nvidia">
+                    <span><span class="key-indicator" id="key-ind-nvidia">⚪</span>NVIDIA NIM</span>
+                    <span class="badge-tag">Coming soon</span>
+                </li>
+                <li class="provider-item" data-provider="cohere">
+                    <span><span class="key-indicator" id="key-ind-cohere">⚪</span>Cohere</span>
+                    <span class="badge-tag">Coming soon</span>
+                </li>
+                <li class="provider-item" data-provider="modelscope">
+                    <span><span class="key-indicator" id="key-ind-modelscope">⚪</span>ModelScope</span>
+                    <span class="badge-tag">Coming soon</span>
+                </li>
+                <li class="provider-item" data-provider="sambanova">
+                    <span><span class="key-indicator" id="key-ind-sambanova">⚪</span>SambaNova</span>
+                    <span class="badge-tag">Coming soon</span>
+                </li>
+                <li class="provider-item" data-provider="llm7">
+                    <span><span class="key-indicator" id="key-ind-llm7">⚪</span>LLM7.io</span>
+                    <span class="badge-tag">Coming soon</span>
+                </li>
+                <li class="provider-item" data-provider="bytez">
+                    <span><span class="key-indicator" id="key-ind-bytez">⚪</span>Bytez</span>
+                    <span class="badge-tag">Coming soon</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Group B: Custom API -->
+        <div class="provider-group">
+            <div class="group-title">Group B (Custom API)</div>
+            <ul class="provider-list" id="group-b-list">
+                <li class="provider-item" data-provider="cloudflare">
+                    <span><span class="key-indicator" id="key-ind-cloudflare">⚪</span>Cloudflare Workers AI</span>
+                    <span class="badge-tag">Coming soon</span>
+                </li>
+                <li class="provider-item" data-provider="ollama">
+                    <span><span class="key-indicator" id="key-ind-ollama">⚪</span>Ollama Cloud</span>
+                    <span class="badge-tag">Coming soon</span>
+                </li>
+                <li class="provider-item" data-provider="ovh">
+                    <span><span class="key-indicator" id="key-ind-ovh">⚪</span>OVHcloud AI Endpoints</span>
+                    <span class="badge-tag">Coming soon</span>
+                </li>
+                <li class="provider-item" data-provider="watsonx">
+                    <span><span class="key-indicator" id="key-ind-watsonx">⚪</span>IBM watsonx.ai</span>
+                    <span class="badge-tag">Coming soon</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
 <button id="desktop-toggle-fab" title="Toggle Desktop View">🖥️</button>
 
 <div class="header">
-    <h1>Ranked Matrix Dashboard</h1>
+    <div class="header-top-row">
+        <button id="hamburger-btn" aria-label="Open Provider Switcher" class="hamburger-btn">☰</button>
+        <h1>Ranked Matrix Dashboard</h1>
+        <div id="active-provider-badge" class="provider-badge">OpenRouter</div>
+    </div>
     <div style="display: flex; flex-wrap: wrap; gap: 8px;">
         <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
             <input type="password" id="api-key" placeholder="Paste OpenRouter API Key Here..." style="padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: #000; color: #fff; width: 100%; box-sizing: border-box;" />
-            <a href="https://openrouter.ai/workspaces/default/keys" target="_blank" style="color: #8bb4ff; font-size: 11px; text-decoration: none;">Get your OpenRouter API Key here</a>
+            <a id="api-key-link" href="https://openrouter.ai/workspaces/default/keys" target="_blank" style="color: #8bb4ff; font-size: 11px; text-decoration: none;">Get your OpenRouter API Key here</a>
         </div>
         <div style="display: flex; gap: 4px; flex-wrap: nowrap; align-items: flex-start; flex: 1; min-width: 300px;">
             <button id="refresh-btn" style="background: var(--accent); color: #fff; border: none; padding: 0 6px; border-radius: 4px; cursor: pointer; font-weight: bold; height: 35px; font-size: 11px; flex: 1; white-space: nowrap;">Refresh</button>
@@ -86,10 +316,16 @@
 </div>
 
 <script type="module">
-    import { fetchData, refreshRefusalRates } from './core.js';
+    import { fetchData, refreshRefusalRates, PROVIDER_REGISTRY } from './core.js?v=0A';
+
+    const browserStorageAdapter = {
+        getItem: (key) => localStorage.getItem(key),
+        setItem: (key, val) => localStorage.setItem(key, val)
+    };
 
     // --- STATE MANAGEMENT ---
     const appState = {
+        activeProvider: browserStorageAdapter.getItem('active_provider') || 'openrouter',
         rankedColumns: [[], [], [], [], [], []],
         expanded: { rowIndex: null, colIndex: null },
         parsedModels: [],
@@ -97,20 +333,102 @@
         isFetchingRates: false
     };
 
-    const browserStorageAdapter = {
-        getItem: (key) => localStorage.getItem(key),
-        setItem: (key, val) => localStorage.setItem(key, val)
-    };
+    function getProviderKey(providerId) {
+        if (providerId === 'openrouter') {
+            return browserStorageAdapter.getItem('openRouterApiKey') || browserStorageAdapter.getItem('api_key_openrouter') || '';
+        }
+        return browserStorageAdapter.getItem(`api_key_${providerId}`) || '';
+    }
 
-    // Restore cached models if they exist
-    const cachedRanked = browserStorageAdapter.getItem('cached_rankedColumns');
-    const cachedParsed = browserStorageAdapter.getItem('cached_parsedModels');
-    if (cachedRanked && cachedParsed) {
-        try {
-            appState.rankedColumns = JSON.parse(cachedRanked);
-            appState.parsedModels = JSON.parse(cachedParsed);
+    function setProviderKey(providerId, key) {
+        browserStorageAdapter.setItem(`api_key_${providerId}`, key);
+        if (providerId === 'openrouter') {
+            browserStorageAdapter.setItem('openRouterApiKey', key);
+        }
+        updateKeyIndicators();
+    }
+
+    function updateKeyIndicators() {
+        Object.keys(PROVIDER_REGISTRY).forEach(id => {
+            const ind = document.getElementById(`key-ind-${id}`);
+            if (ind) {
+                const hasKey = !!getProviderKey(id);
+                ind.innerText = hasKey ? '🟢' : '⚪';
+                ind.title = hasKey ? 'API Key Configured' : 'No Key';
+            }
+        });
+    }
+
+    function updateProviderUI() {
+        const p = PROVIDER_REGISTRY[appState.activeProvider] || PROVIDER_REGISTRY.openrouter;
+        
+        // Highlight active item in side panel
+        document.querySelectorAll('.provider-item').forEach(el => {
+            if (el.getAttribute('data-provider') === p.id) {
+                el.classList.add('active');
+            } else {
+                el.classList.remove('active');
+            }
+        });
+
+        // Header Badge
+        const badge = document.getElementById('active-provider-badge');
+        if (badge) {
+            badge.innerText = p.id === 'openrouter' ? p.name : `${p.name} (Coming Soon)`;
+        }
+
+        // Header API Key input & link
+        const keyInput = document.getElementById('api-key');
+        const keyLink = document.getElementById('api-key-link');
+        const refusalBtn = document.getElementById('refresh-refusal-btn');
+
+        if (keyInput) {
+            keyInput.value = getProviderKey(p.id);
+            keyInput.placeholder = p.keyPlaceholder || `Paste ${p.name} API Key Here...`;
+        }
+        if (keyLink) {
+            keyLink.innerText = `Get your ${p.name} API Key here`;
+            keyLink.href = p.keyUrl || '#';
+        }
+
+        // Alternative 4: Hide Refusal Rates button for non-OpenRouter providers
+        if (refusalBtn) {
+            refusalBtn.style.display = (p.id === 'openrouter') ? '' : 'none';
+        }
+
+        // Alternative 2: Load provider-scoped cached data
+        let cachedRanked, cachedParsed;
+        if (p.id === 'openrouter') {
+            cachedRanked = browserStorageAdapter.getItem('cached_rankedColumns_openrouter') || browserStorageAdapter.getItem('cached_rankedColumns');
+            cachedParsed = browserStorageAdapter.getItem('cached_parsedModels_openrouter') || browserStorageAdapter.getItem('cached_parsedModels');
+        } else {
+            cachedRanked = browserStorageAdapter.getItem(`cached_rankedColumns_${p.id}`);
+            cachedParsed = browserStorageAdapter.getItem(`cached_parsedModels_${p.id}`);
+        }
+
+        if (cachedRanked && cachedParsed) {
+            try {
+                appState.rankedColumns = JSON.parse(cachedRanked);
+                appState.parsedModels = JSON.parse(cachedParsed);
+                renderTable();
+                document.getElementById('status').innerText = `Viewing cached ${p.name} data.`;
+            } catch(e) {
+                appState.rankedColumns = [[], [], [], [], [], []];
+                appState.parsedModels = [];
+                renderTable();
+            }
+        } else {
+            appState.rankedColumns = [[], [], [], [], [], []];
+            appState.parsedModels = [];
             renderTable();
-        } catch(e) {}
+            if (p.id === 'openrouter') {
+                document.getElementById('status').innerText = "Waiting to start...";
+            } else {
+                document.getElementById('status').innerText = `${p.name} integration coming soon in Sub-phase 0B/0C.`;
+            }
+        }
+
+        updateKeyIndicators();
     }
 
     // --- DOM MANIPULATION ---
@@ -242,15 +560,53 @@
         });
     }
 
+    // --- SIDE PANEL CONTROLS ---
+    const sidePanel = document.getElementById('side-panel');
+    const backdrop = document.getElementById('side-panel-backdrop');
+
+    function openSidePanel() {
+        sidePanel.classList.add('open');
+        backdrop.classList.add('open');
+    }
+
+    function closeSidePanel() {
+        sidePanel.classList.remove('open');
+        backdrop.classList.remove('open');
+    }
+
+    document.getElementById('hamburger-btn').addEventListener('click', openSidePanel);
+    document.getElementById('close-panel-btn').addEventListener('click', closeSidePanel);
+    backdrop.addEventListener('click', closeSidePanel);
+
+    document.querySelectorAll('.provider-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const providerId = this.getAttribute('data-provider');
+            if (providerId && PROVIDER_REGISTRY[providerId]) {
+                appState.activeProvider = providerId;
+                browserStorageAdapter.setItem('active_provider', providerId);
+                updateProviderUI();
+                closeSidePanel();
+            }
+        });
+    });
+
     // --- BUTTON ACTIONS ---
     document.getElementById('refresh-btn').addEventListener('click', async function() {
         if (appState.isFetching) return;
+        const currentP = appState.activeProvider;
+        const p = PROVIDER_REGISTRY[currentP];
+
+        if (currentP !== 'openrouter') {
+            document.getElementById('status').innerText = `${p?.name || currentP} adapter coming soon in Sub-phase 0B/0C.`;
+            return;
+        }
+
         const apiKey = document.getElementById('api-key').value.trim();
         if (!apiKey) {
             document.getElementById('status').innerText = "Please enter API Key to start fetching.";
             return;
         }
-        browserStorageAdapter.setItem('openRouterApiKey', apiKey);
+        setProviderKey('openrouter', apiKey);
 
         appState.isFetching = true;
         document.getElementById('status').innerText = "Fetching latest data...";
@@ -264,6 +620,8 @@
             
             browserStorageAdapter.setItem('cached_parsedModels', JSON.stringify(appState.parsedModels));
             browserStorageAdapter.setItem('cached_rankedColumns', JSON.stringify(appState.rankedColumns));
+            browserStorageAdapter.setItem('cached_parsedModels_openrouter', JSON.stringify(appState.parsedModels));
+            browserStorageAdapter.setItem('cached_rankedColumns_openrouter', JSON.stringify(appState.rankedColumns));
             
             renderTable();
             document.getElementById('status').innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
@@ -279,6 +637,8 @@
 
     document.getElementById('refresh-refusal-btn').addEventListener('click', async function() {
         if (appState.isFetchingRates) return;
+        if (appState.activeProvider !== 'openrouter') return;
+
         if (!appState.parsedModels || appState.parsedModels.length === 0) {
             document.getElementById('status').innerText = "Fetch models first.";
             return;
@@ -301,6 +661,8 @@
             
             browserStorageAdapter.setItem('cached_parsedModels', JSON.stringify(appState.parsedModels));
             browserStorageAdapter.setItem('cached_rankedColumns', JSON.stringify(appState.rankedColumns));
+            browserStorageAdapter.setItem('cached_parsedModels_openrouter', JSON.stringify(appState.parsedModels));
+            browserStorageAdapter.setItem('cached_rankedColumns_openrouter', JSON.stringify(appState.rankedColumns));
             
             renderTable();
             document.getElementById('status').innerText = `Refusal rates updated: ${new Date().toLocaleTimeString()}`;
@@ -319,6 +681,8 @@
             alert("No data to export. Please refresh first.");
             return;
         }
+        const pId = appState.activeProvider;
+        const fileName = `${pId}_dashboard_data.json`;
         const dataStr = JSON.stringify(appState.rankedColumns, null, 2);
         
         if (window.Capacitor?.isNativePlatform?.()) {
@@ -327,14 +691,14 @@
                 const Share = window.Capacitor.Plugins.Share;
                 
                 const writeResult = await Filesystem.writeFile({
-                    path: 'dashboard_data.json',
+                    path: fileName,
                     data: dataStr,
                     directory: 'DOCUMENTS',
                     encoding: 'utf8'
                 });
 
                 await Share.share({
-                    title: 'Exported Dashboard Data',
+                    title: `Exported ${PROVIDER_REGISTRY[pId]?.name || pId} Data`,
                     url: writeResult.uri,
                     dialogTitle: 'Save Dashboard Data'
                 });
@@ -347,7 +711,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'dashboard_data.json';
+            a.download = fileName;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -356,20 +720,17 @@
     });
 
     // --- INITIALIZATION ---
-    const savedKey = browserStorageAdapter.getItem('openRouterApiKey');
-    if (savedKey) {
-        document.getElementById('api-key').value = savedKey;
-    }
+    updateProviderUI();
 
     document.getElementById('api-key').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
-            browserStorageAdapter.setItem('openRouterApiKey', this.value.trim());
+            setProviderKey(appState.activeProvider, this.value.trim());
             document.getElementById('refresh-btn').click();
         }
     });
 
     document.getElementById('api-key').addEventListener('change', function () {
-        browserStorageAdapter.setItem('openRouterApiKey', this.value.trim());
+        setProviderKey(appState.activeProvider, this.value.trim());
     });
 
     // Desktop View Toggle Logic
