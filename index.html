@@ -296,7 +296,7 @@
 </div>
 
 <script type="module">
-    import { fetchData, refreshRefusalRates, PROVIDER_REGISTRY } from './core.js?v=0C';
+    import { fetchData, refreshRefusalRates, PROVIDER_REGISTRY, runProviderPipeline } from './core.js?v=0D';
 
     const browserStorageAdapter = {
         getItem: (key) => localStorage.getItem(key),
@@ -374,7 +374,7 @@
         // Header Badge
         const badge = document.getElementById('active-provider-badge');
         if (badge) {
-            badge.innerText = p.id === 'openrouter' ? p.name : `${p.name} (Coming Soon)`;
+            badge.innerText = (p.id === 'openrouter' || p.implemented) ? p.name : `${p.name} (Coming Soon)`;
         }
 
         // Header API Key input & link
@@ -421,7 +421,7 @@
             appState.rankedColumns = [[], [], [], [], [], []];
             appState.parsedModels = [];
             renderTable();
-            if (p.id === 'openrouter') {
+            if (p.id === 'openrouter' || p.implemented) {
                 document.getElementById('status').innerText = "Waiting to start...";
             } else {
                 document.getElementById('status').innerText = `${p.name} integration coming soon in an upcoming milestone.`;
@@ -597,7 +597,7 @@
         const currentP = appState.activeProvider;
         const p = PROVIDER_REGISTRY[currentP];
 
-        if (currentP !== 'openrouter') {
+        if (!p || !p.implemented) {
             document.getElementById('status').innerText = `${p?.name || currentP} adapter coming soon in an upcoming milestone.`;
             return;
         }
@@ -607,7 +607,7 @@
             document.getElementById('status').innerText = "Please enter API Key to start fetching.";
             return;
         }
-        setProviderKey('openrouter', apiKey);
+        setProviderKey(currentP, apiKey);
 
         appState.isFetching = true;
         document.getElementById('status').innerText = "Fetching latest data...";
@@ -615,14 +615,16 @@
         this.innerText = "Refreshing...";
 
         try {
-            const res = await fetchData(apiKey, browserStorageAdapter);
+            const res = (currentP === 'openrouter')
+                ? await fetchData(apiKey, browserStorageAdapter)
+                : await runProviderPipeline(currentP, apiKey, browserStorageAdapter);
             appState.parsedModels = res.parsedModels;
             appState.rankedColumns = res.rankedColumns;
             
             browserStorageAdapter.setItem('cached_parsedModels', JSON.stringify(appState.parsedModels));
             browserStorageAdapter.setItem('cached_rankedColumns', JSON.stringify(appState.rankedColumns));
-            browserStorageAdapter.setItem('cached_parsedModels_openrouter', JSON.stringify(appState.parsedModels));
-            browserStorageAdapter.setItem('cached_rankedColumns_openrouter', JSON.stringify(appState.rankedColumns));
+            browserStorageAdapter.setItem(`cached_parsedModels_${currentP}`, JSON.stringify(appState.parsedModels));
+            browserStorageAdapter.setItem(`cached_rankedColumns_${currentP}`, JSON.stringify(appState.rankedColumns));
             
             renderTable();
             document.getElementById('status').innerText = `Last updated: ${new Date().toLocaleTimeString()}`;

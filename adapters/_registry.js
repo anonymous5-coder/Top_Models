@@ -2,6 +2,14 @@
 // Provider Registry Scaffold & Metadata Mapping
 
 import * as openrouterAdapter from './openrouter/index.js';
+import * as groqAdapter from './groq/index.js';
+import * as geminiAdapter from './gemini/index.js';
+import * as sambanovaAdapter from './sambanova/index.js';
+import * as mistralAdapter from './mistral/index.js';
+import * as cohereAdapter from './cohere/index.js';
+import * as llm7Adapter from './llm7/index.js';
+import * as modelscopeAdapter from './modelscope/index.js';
+import * as nvidiaAdapter from './nvidia/index.js';
 
 export const PROVIDER_REGISTRY = {
     openrouter: {
@@ -23,7 +31,8 @@ export const PROVIDER_REGISTRY = {
         keyUrl: 'https://aistudio.google.com/app/apikey',
         keyPlaceholder: 'Paste Gemini API Key Here...',
         requiresKey: true,
-        implemented: false
+        implemented: true,
+        adapter: geminiAdapter
     },
     groq: {
         id: 'groq',
@@ -33,7 +42,8 @@ export const PROVIDER_REGISTRY = {
         keyUrl: 'https://console.groq.com/keys',
         keyPlaceholder: 'Paste Groq API Key Here...',
         requiresKey: true,
-        implemented: false
+        implemented: true,
+        adapter: groqAdapter
     },
     mistral: {
         id: 'mistral',
@@ -43,7 +53,8 @@ export const PROVIDER_REGISTRY = {
         keyUrl: 'https://console.mistral.ai/api-keys/',
         keyPlaceholder: 'Paste Mistral API Key Here...',
         requiresKey: true,
-        implemented: false
+        implemented: true,
+        adapter: mistralAdapter
     },
     nvidia: {
         id: 'nvidia',
@@ -53,7 +64,8 @@ export const PROVIDER_REGISTRY = {
         keyUrl: 'https://build.nvidia.com/',
         keyPlaceholder: 'Paste NVIDIA NIM API Key Here...',
         requiresKey: true,
-        implemented: false
+        implemented: true,
+        adapter: nvidiaAdapter
     },
     cohere: {
         id: 'cohere',
@@ -63,7 +75,8 @@ export const PROVIDER_REGISTRY = {
         keyUrl: 'https://dashboard.cohere.com/api-keys',
         keyPlaceholder: 'Paste Cohere API Key Here...',
         requiresKey: true,
-        implemented: false
+        implemented: true,
+        adapter: cohereAdapter
     },
     modelscope: {
         id: 'modelscope',
@@ -73,7 +86,8 @@ export const PROVIDER_REGISTRY = {
         keyUrl: 'https://modelscope.cn/',
         keyPlaceholder: 'Paste ModelScope API Key Here...',
         requiresKey: true,
-        implemented: false
+        implemented: true,
+        adapter: modelscopeAdapter
     },
     sambanova: {
         id: 'sambanova',
@@ -83,7 +97,8 @@ export const PROVIDER_REGISTRY = {
         keyUrl: 'https://cloud.sambanova.ai/apis',
         keyPlaceholder: 'Paste SambaNova API Key Here...',
         requiresKey: true,
-        implemented: false
+        implemented: true,
+        adapter: sambanovaAdapter
     },
     llm7: {
         id: 'llm7',
@@ -93,7 +108,8 @@ export const PROVIDER_REGISTRY = {
         keyUrl: 'https://llm7.io/',
         keyPlaceholder: 'Paste LLM7 API Key Here...',
         requiresKey: true,
-        implemented: false
+        implemented: true,
+        adapter: llm7Adapter
     },
     cloudflare: {
         id: 'cloudflare',
@@ -139,6 +155,14 @@ export const PROVIDER_REGISTRY = {
 
 const adapterModules = new Map();
 adapterModules.set('openrouter', openrouterAdapter);
+adapterModules.set('groq', groqAdapter);
+adapterModules.set('gemini', geminiAdapter);
+adapterModules.set('sambanova', sambanovaAdapter);
+adapterModules.set('mistral', mistralAdapter);
+adapterModules.set('cohere', cohereAdapter);
+adapterModules.set('llm7', llm7Adapter);
+adapterModules.set('modelscope', modelscopeAdapter);
+adapterModules.set('nvidia', nvidiaAdapter);
 
 export function registerAdapter(providerId, adapterModule) {
     adapterModules.set(providerId, adapterModule);
