@@ -46,4 +46,12 @@ filesToCopy.forEach(file => {
     }
 });
 
+// Mirror adapters/ directory recursively into www/adapters/
+const adaptersSrc = path.join(__dirname, 'adapters');
+const adaptersDest = path.join(wwwDir, 'adapters');
+if (fs.existsSync(adaptersSrc)) {
+    fs.cpSync(adaptersSrc, adaptersDest, { recursive: true });
+    console.log('Copied adapters/ directory to www/');
+}
+
 console.log('Synchronization to www/ complete.');
