@@ -3,9 +3,15 @@
 
 import { createNormalizedModel } from '../_normalize.js';
 
+const IS_BROWSER = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+const PROXY_BASE = 'http://localhost:8081/proxy?url=';
+
 export async function fetch(apiKey, storageAdapter) {
     if (!apiKey) throw new Error("API Key is required.");
-    const res = await globalThis.fetch('https://integrate.api.nvidia.com/v1/models', {
+    const targetUrl = IS_BROWSER
+        ? PROXY_BASE + encodeURIComponent('https://integrate.api.nvidia.com/v1/models')
+        : 'https://integrate.api.nvidia.com/v1/models';
+    const res = await globalThis.fetch(targetUrl, {
         headers: { 'Authorization': `Bearer ${apiKey}` }
     });
     if (!res.ok) {
