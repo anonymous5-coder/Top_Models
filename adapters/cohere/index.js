@@ -16,17 +16,15 @@ export async function fetch(apiKey, storageAdapter) {
     return json.models || [];
 }
 
-export function filter(rawData) {
-    const list = Array.isArray(rawData) ? rawData : (rawData?.models || []);
-    return list.filter(m => {
-        if (!m.name) return false;
-        const endpoints = m.endpoints || [];
-        return endpoints.includes('chat') || endpoints.includes('generate');
-    });
+export function filter(normalizedModels) {
+    return (normalizedModels || []).filter(m => m.is_chat === true && m.free !== false);
 }
 
-export function normalize(filteredModels, storageAdapter, rawData) {
-    return (filteredModels || []).map(m => {
+export function normalize(rawData, storageAdapter) {
+    const list = Array.isArray(rawData) ? rawData : (rawData?.models || []);
+    return list.map(m => {
+        const endpoints = m.endpoints || [];
+        const isChat = !!m.name && (endpoints.includes('chat') || endpoints.includes('generate'));
         const feats = m.features || [];
         const isVision = feats.includes('vision');
         const isTools = feats.includes('tools');
@@ -43,7 +41,9 @@ export function normalize(filteredModels, storageAdapter, rawData) {
             has_tools: isTools ? 1 : 0,
             uptime: null,
             latency: null,
-            raw_modalities: isVision ? "multimodal (text, image)" : "text"
+            raw_modalities: isVision ? "text, image" : "text",
+            free: null,
+            is_chat: isChat
         });
     });
 }

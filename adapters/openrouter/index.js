@@ -77,19 +77,14 @@ export async function fetch(apiKey, storageAdapter) {
     };
 }
 
-export function filter(rawData) {
-    const list = Array.isArray(rawData) ? rawData : (rawData?.models || rawData?.data || []);
-    const filtered = list.filter(m => m.pricing && m.pricing.prompt === "0");
-    if (!Array.isArray(rawData)) {
-        filtered._benchmarksMap = rawData?.benchmarksMap;
-        filtered._endpointsMap = rawData?.endpointsMap;
-    }
-    return filtered;
+export function filter(normalizedModels) {
+    return (normalizedModels || []).filter(m => m.is_chat === true && m.free !== false);
 }
 
-export function normalize(filteredModels, storageAdapter, rawData) {
-    const benchmarksMap = rawData?.benchmarksMap || filteredModels?._benchmarksMap || {};
-    const endpointsMap = rawData?.endpointsMap || filteredModels?._endpointsMap || {};
+export function normalize(rawData, storageAdapter) {
+    const list = Array.isArray(rawData) ? rawData : (rawData?.models || rawData?.data || []);
+    const benchmarksMap = rawData?.benchmarksMap || {};
+    const endpointsMap = rawData?.endpointsMap || {};
 
     // Load Refusals from storage
     let refusalRates = {};
@@ -100,7 +95,7 @@ export function normalize(filteredModels, storageAdapter, rawData) {
         }
     }
 
-    const parsedModels = filteredModels.map(model => {
+    const parsedModels = list.map(model => {
         const inMods = model.architecture?.input_modalities || [];
         const archMod = model.architecture?.modality || "";
         const supportParams = model.supported_parameters || [];
@@ -128,6 +123,8 @@ export function normalize(filteredModels, storageAdapter, rawData) {
             latency = eps[0].latency_last_30m?.p50 ?? null;
         }
 
+        const isFree = model.pricing && model.pricing.prompt === "0";
+
         return createNormalizedModel({
             id: model.id,
             name: model.name,
@@ -141,7 +138,9 @@ export function normalize(filteredModels, storageAdapter, rawData) {
             has_tools: hasTools,
             uptime: uptime,
             latency: latency,
-            raw_modalities: inMods.join(', ') || archMod || "text"
+            raw_modalities: inMods.map(x => x.toLowerCase()).join(', ') || (archMod || "text").toLowerCase(),
+            free: isFree ? true : false,
+            is_chat: true
         });
     });
 

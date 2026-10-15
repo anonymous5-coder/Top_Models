@@ -16,18 +16,15 @@ export async function fetch(apiKey, storageAdapter) {
     return json.data || [];
 }
 
-export function filter(rawData) {
-    const list = Array.isArray(rawData) ? rawData : (rawData?.data || []);
-    return list.filter(m => {
-        if (!m.id) return false;
-        const id = m.id.toLowerCase();
-        return !id.includes('image-edit');
-    });
+export function filter(normalizedModels) {
+    return (normalizedModels || []).filter(m => m.is_chat === true && m.free !== false);
 }
 
-export function normalize(filteredModels, storageAdapter, rawData) {
-    return (filteredModels || []).map(m => {
+export function normalize(rawData, storageAdapter) {
+    const list = Array.isArray(rawData) ? rawData : (rawData?.data || []);
+    return list.map(m => {
         const lowerId = (m.id || '').toLowerCase();
+        const isChat = !!m.id && !lowerId.includes('image-edit');
         const isVision = lowerId.includes('vl') || lowerId.includes('vision');
         return createNormalizedModel({
             id: m.id,
@@ -39,10 +36,12 @@ export function normalize(filteredModels, storageAdapter, rawData) {
             agentic_index: null,
             refusal_rate: null,
             has_files: isVision ? 1 : 0,
-            has_tools: 1,
+            has_tools: null,
             uptime: null,
             latency: null,
-            raw_modalities: isVision ? "multimodal (text, image)" : "text"
+            raw_modalities: isVision ? "text, image" : "text",
+            free: null,
+            is_chat: isChat
         });
     });
 }

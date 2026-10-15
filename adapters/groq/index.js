@@ -16,25 +16,28 @@ export async function fetch(apiKey, storageAdapter) {
     return json.data || [];
 }
 
-export function filter(rawData) {
-    const list = Array.isArray(rawData) ? rawData : (rawData?.data || []);
-    return list.filter(m => {
-        if (!m.id) return false;
-        if (m.active === false) return false;
-        const outMods = m.output_modalities || [];
-        if (!outMods.includes('text')) return false;
-        if (m.id.startsWith('whisper-')) return false;
-        if (m.id.includes('prompt-guard') || m.id.includes('safeguard')) return false;
-        if (m.id.includes('orpheus')) return false;
-        return true;
-    });
+export function filter(normalizedModels) {
+    return (normalizedModels || []).filter(m => m.is_chat === true && m.free !== false);
 }
 
-export function normalize(filteredModels, storageAdapter, rawData) {
-    return (filteredModels || []).map(m => {
+export function normalize(rawData, storageAdapter) {
+    const list = Array.isArray(rawData) ? rawData : (rawData?.data || []);
+    return list.map(m => {
         const inMods = m.input_modalities || [];
+        const outMods = m.output_modalities || [];
+        const id = m.id || '';
+        const isChat = !!m.id
+            && m.active !== false
+            && outMods.includes('text')
+            && !id.startsWith('whisper-')
+            && !id.includes('prompt-guard')
+            && !id.includes('safeguard')
+            && !id.includes('orpheus');
+
         const hasFiles = inMods.includes('image') || inMods.includes('file') ? 1 : 0;
-        const hasTools = 1;
+        const feats = m.supported_features || [];
+        const hasTools = feats.includes('tools') ? 1 : 0;
+
         return createNormalizedModel({
             id: m.id,
             name: m.name || m.id,
@@ -48,7 +51,9 @@ export function normalize(filteredModels, storageAdapter, rawData) {
             has_tools: hasTools,
             uptime: null,
             latency: null,
-            raw_modalities: inMods.join(', ') || "text"
+            raw_modalities: inMods.map(x => x.toLowerCase()).join(', ') || "text",
+            free: null,
+            is_chat: isChat
         });
     });
 }

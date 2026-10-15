@@ -24,23 +24,35 @@
         .cell-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; border-top: 1px solid #333; padding-top: 4px; }
         .primary-val { font-size: 13px; font-weight: bold; color: var(--accent); }
         
-        #desktop-toggle-fab {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
+        .table-actions-bar {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            margin-bottom: 24px;
+        }
+        .table-actions-bar button {
             background: #3498db;
             color: #fff;
             border: none;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            font-size: 24px;
+            border-radius: 4px;
+            padding: 0 14px;
+            height: 35px;
+            font-size: 13px;
+            font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            z-index: 1000;
-            display: flex;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+            display: inline-flex;
             align-items: center;
             justify-content: center;
+        }
+        .table-actions-bar button:disabled {
+            background: #2c3e50;
+            color: #7f8c8d;
+            cursor: not-allowed;
+            box-shadow: none;
+            opacity: 0.6;
         }
         body.desktop-view .table-wrapper {
             min-width: 1200px;
@@ -255,8 +267,6 @@
     </div>
 </nav>
 
-<button id="desktop-toggle-fab" title="Toggle Desktop View">🖥️</button>
-
 <div class="header">
     <div class="header-top-row">
         <button id="hamburger-btn" aria-label="Open Provider Switcher" class="hamburger-btn">☰</button>
@@ -295,8 +305,13 @@
     </table>
 </div>
 
+<div class="table-actions-bar">
+    <button id="desktop-toggle-fab" title="Toggle Desktop View">🖥️</button>
+    <button id="filter-btn" disabled title="Filter models (coming soon)">Filter</button>
+</div>
+
 <script type="module">
-    import { fetchData, refreshRefusalRates, PROVIDER_REGISTRY, runProviderPipeline } from './core.js?v=0D';
+    import { fetchData, refreshRefusalRates, PROVIDER_REGISTRY, runProviderPipeline } from './core.js?v=0F';
 
     const browserStorageAdapter = {
         getItem: (key) => localStorage.getItem(key),

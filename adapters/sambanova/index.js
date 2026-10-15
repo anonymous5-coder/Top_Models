@@ -22,13 +22,13 @@ export async function fetch(apiKey, storageAdapter) {
     return json.data || [];
 }
 
-export function filter(rawData) {
-    const list = Array.isArray(rawData) ? rawData : (rawData?.data || []);
-    return list.filter(m => m.id);
+export function filter(normalizedModels) {
+    return (normalizedModels || []).filter(m => m.is_chat === true && m.free !== false);
 }
 
-export function normalize(filteredModels, storageAdapter, rawData) {
-    return (filteredModels || []).map(m => {
+export function normalize(rawData, storageAdapter) {
+    const list = Array.isArray(rawData) ? rawData : (rawData?.data || []);
+    return list.map(m => {
         return createNormalizedModel({
             id: m.id,
             name: m.id,
@@ -38,11 +38,13 @@ export function normalize(filteredModels, storageAdapter, rawData) {
             coding_index: null,
             agentic_index: null,
             refusal_rate: null,
-            has_files: 0,
-            has_tools: 1,
+            has_files: null,
+            has_tools: null,
             uptime: null,
             latency: null,
-            raw_modalities: "text"
+            raw_modalities: "text",
+            free: null,
+            is_chat: true
         });
     });
 }

@@ -22,16 +22,19 @@ export async function fetch(apiKey, storageAdapter) {
     return json.data || [];
 }
 
-export function filter(rawData) {
-    const list = Array.isArray(rawData) ? rawData : (rawData?.data || []);
-    return list.filter(m => m.model_type === 'chat');
+export function filter(normalizedModels) {
+    return (normalizedModels || []).filter(m => m.is_chat === true && m.free === true);
 }
 
-export function normalize(filteredModels, storageAdapter, rawData) {
-    return (filteredModels || []).map(m => {
+export function normalize(rawData, storageAdapter) {
+    const list = Array.isArray(rawData) ? rawData : (rawData?.data || []);
+    return list.map(m => {
         const inMods = m.modalities?.input || [];
         const isVision = inMods.includes('image') || inMods.includes('file') || !!m.capabilities?.vision;
         const isTools = !!m.tools_calling || !!m.capabilities?.tools;
+        const isChat = (m.model_type === 'chat');
+        const free = (m.usage_based_only === false) ? true : (m.usage_based_only === true ? false : null);
+
         return createNormalizedModel({
             id: m.id,
             name: m.id,
@@ -45,7 +48,9 @@ export function normalize(filteredModels, storageAdapter, rawData) {
             has_tools: isTools ? 1 : 0,
             uptime: null,
             latency: null,
-            raw_modalities: inMods.join(', ') || "text"
+            raw_modalities: inMods.map(x => x.toLowerCase()).join(', ') || "text",
+            free: free,
+            is_chat: isChat
         });
     });
 }

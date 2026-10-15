@@ -1,10 +1,23 @@
-const CACHE_NAME = 'matrix-cache-v5';
+const CACHE_NAME = 'matrix-cache-v8';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './core.js',
   './manifest.json',
-  './icon.svg'
+  './icon.svg',
+  './adapters/_sorting.js',
+  './adapters/_normalize.js',
+  './adapters/_pipeline.js',
+  './adapters/_registry.js',
+  './adapters/openrouter/index.js',
+  './adapters/groq/index.js',
+  './adapters/gemini/index.js',
+  './adapters/sambanova/index.js',
+  './adapters/mistral/index.js',
+  './adapters/cohere/index.js',
+  './adapters/llm7/index.js',
+  './adapters/modelscope/index.js',
+  './adapters/nvidia/index.js'
 ];
 
 self.addEventListener('install', event => {

@@ -22,25 +22,22 @@ export async function fetch(apiKey, storageAdapter) {
     return json.data || [];
 }
 
-export function filter(rawData) {
-    const list = Array.isArray(rawData) ? rawData : (rawData?.data || []);
-    return list.filter(m => {
-        if (!m.id) return false;
-        const id = m.id.toLowerCase();
-        if (id.includes('embed')) return false;
-        if (id.includes('guard')) return false;
-        if (id.includes('rerank')) return false;
-        if (id.includes('deplot')) return false;
-        if (id.includes('retriever')) return false;
-        return true;
-    });
+export function filter(normalizedModels) {
+    return (normalizedModels || []).filter(m => m.is_chat === true && m.free !== false);
 }
 
-export function normalize(filteredModels, storageAdapter, rawData) {
-    return (filteredModels || []).map(m => {
+export function normalize(rawData, storageAdapter) {
+    const list = Array.isArray(rawData) ? rawData : (rawData?.data || []);
+    return list.map(m => {
         const id = (m.id || '').toLowerCase();
+        const isChat = !!m.id
+            && !id.includes('embed')
+            && !id.includes('guard')
+            && !id.includes('rerank')
+            && !id.includes('deplot')
+            && !id.includes('retriever');
         const isVision = id.includes('vision') || id.includes('vlm') || id.includes('fuyu');
-        const isTools = id.includes('instruct') || id.includes('chat');
+        const isTools = id.includes('instruct') || id.includes('chat') ? 1 : 0;
         return createNormalizedModel({
             id: m.id,
             name: m.id,
@@ -51,10 +48,12 @@ export function normalize(filteredModels, storageAdapter, rawData) {
             agentic_index: null,
             refusal_rate: null,
             has_files: isVision ? 1 : 0,
-            has_tools: isTools ? 1 : 0,
+            has_tools: isTools,
             uptime: null,
             latency: null,
-            raw_modalities: isVision ? "multimodal (text, image)" : "text"
+            raw_modalities: isVision ? "text, image" : "text",
+            free: null,
+            is_chat: isChat
         });
     });
 }

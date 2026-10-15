@@ -14,7 +14,9 @@ export function createNormalizedModel({
     has_tools = 0,
     uptime = null,
     latency = null,
-    raw_modalities = "text"
+    raw_modalities = "text",
+    free = null,
+    is_chat = true
 }) {
     return {
         id,
@@ -29,6 +31,8 @@ export function createNormalizedModel({
         has_tools: has_tools ? 1 : 0,
         uptime: uptime !== undefined ? uptime : null,
         latency: latency !== undefined ? latency : null,
-        raw_modalities: raw_modalities || "text"
+        raw_modalities: raw_modalities || "text",
+        free: free !== undefined ? free : null,
+        is_chat: is_chat !== undefined ? is_chat : true
     };
 }

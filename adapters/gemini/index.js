@@ -16,17 +16,22 @@ export async function fetch(apiKey, storageAdapter) {
     return json.models || [];
 }
 
-export function filter(rawData) {
-    const list = Array.isArray(rawData) ? rawData : (rawData?.models || []);
-    return list.filter(m => {
-        const methods = m.supportedGenerationMethods || [];
-        return methods.includes('generateContent');
-    });
+export function filter(normalizedModels) {
+    return (normalizedModels || []).filter(m => m.is_chat === true && m.free !== false);
 }
 
-export function normalize(filteredModels, storageAdapter, rawData) {
-    return (filteredModels || []).map(m => {
+export function normalize(rawData, storageAdapter) {
+    const list = Array.isArray(rawData) ? rawData : (rawData?.models || []);
+    return list.map(m => {
         const cleanId = (m.name || '').replace(/^models\//, '');
+        const methods = m.supportedGenerationMethods || [];
+        const isChat = methods.includes('generateContent');
+
+        const isGemini = cleanId.toLowerCase().startsWith('gemini-');
+        const hasFiles = isGemini ? 1 : 0;
+        const hasTools = null;
+        const rawModalities = isGemini ? "text, image, audio, video" : "text";
+
         return createNormalizedModel({
             id: cleanId,
             name: m.displayName || cleanId,
@@ -36,11 +41,13 @@ export function normalize(filteredModels, storageAdapter, rawData) {
             coding_index: null,
             agentic_index: null,
             refusal_rate: null,
-            has_files: 1,
-            has_tools: 1,
+            has_files: hasFiles,
+            has_tools: hasTools,
             uptime: null,
             latency: null,
-            raw_modalities: "multimodal (text, image, audio, video)"
+            raw_modalities: rawModalities,
+            free: null,
+            is_chat: isChat
         });
     });
 }
