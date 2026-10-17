@@ -1,4 +1,4 @@
-const CACHE_NAME = 'matrix-cache-v8';
+const CACHE_NAME = 'matrix-cache-v11';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const ASSETS_TO_CACHE = [
   './manifest.json',
   './icon.svg',
   './adapters/_sorting.js',
+  './adapters/_filter.js',
   './adapters/_normalize.js',
   './adapters/_pipeline.js',
   './adapters/_registry.js',
@@ -51,14 +52,33 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Route 2: JavaScript Files (e.g. core.js) -> Network-First
+  // Route 2: HTML / Navigation Requests -> Network-First (ensures fresh HTML on reload)
+  if (event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/') {
+    event.respondWith(
+      fetch(event.request).then(response => {
+        if (response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => {
+        return caches.match(event.request).then(res => {
+          return res || caches.match('./index.html') || caches.match('./');
+        });
+      })
+    );
+    return;
+  }
+
+  // Route 3: JavaScript Files (e.g. core.js) -> Network-First
   if (url.pathname.endsWith('.js')) {
     event.respondWith(
       fetch(event.request).then(response => {
-        return caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, response.clone());
-          return response;
-        });
+        if (response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return response;
       }).catch(() => {
         return caches.match(event.request);
       })
@@ -66,14 +86,15 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Route 3: Local JSON Data -> Network-First
+  // Route 4: Local JSON Data -> Network-First
   if (url.pathname.endsWith('.json') && !url.pathname.endsWith('manifest.json')) {
     event.respondWith(
       fetch(event.request).then(response => {
-        return caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, response.clone());
-          return response;
-        });
+        if (response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return response;
       }).catch(() => {
         return caches.match(event.request);
       })
@@ -81,14 +102,15 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Route 4: Static Assets -> Cache-First
+  // Route 5: Static Assets (icons, manifest) -> Cache-First
   event.respondWith(
     caches.match(event.request).then(response => {
       return response || fetch(event.request).then(fetchResponse => {
-        return caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, fetchResponse.clone());
-          return fetchResponse;
-        });
+        if (fetchResponse.status === 200) {
+          const clone = fetchResponse.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return fetchResponse;
       });
     })
   );

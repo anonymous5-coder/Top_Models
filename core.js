@@ -5,12 +5,14 @@ import { S, sortHierarchy, val, sortModelsForColumn } from './adapters/_sorting.
 import { createNormalizedModel } from './adapters/_normalize.js';
 import { PROVIDER_REGISTRY, registerAdapter, getAdapter } from './adapters/_registry.js';
 import { runProviderPipeline } from './adapters/_pipeline.js';
+import { DEFAULT_FILTER_STATE, FILTER_DEFINITIONS, applyModelFilters } from './adapters/_filter.js';
 
 // Re-export sorting engine, normalizer, registry, and pipeline
 export { S, sortHierarchy, val, sortModelsForColumn };
 export { createNormalizedModel };
 export { PROVIDER_REGISTRY, registerAdapter, getAdapter };
 export { runProviderPipeline };
+export { DEFAULT_FILTER_STATE, FILTER_DEFINITIONS, applyModelFilters };
 
 
 export async function fetchData(apiKey, storageAdapter) {

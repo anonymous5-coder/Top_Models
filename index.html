@@ -54,6 +54,127 @@
             box-shadow: none;
             opacity: 0.6;
         }
+
+        /* Filter Button & Popover Styling */
+        .filter-btn-container {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+        .filter-popover {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            width: 280px;
+            /* Conservative cap: 10px body padding + 35px FAB + 8px gap = 53px left offset; + 11px right clearance */
+            max-width: calc(100vw - 64px);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            background: #1a1a1a;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+            z-index: 1200;
+            padding: 12px;
+            box-sizing: border-box;
+        }
+        .filter-popover.hidden {
+            display: none;
+        }
+        .filter-popover-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+        .filter-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .filter-section {
+            margin-bottom: 12px;
+        }
+        .filter-section-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+        .filter-option-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+            font-size: 12px;
+            color: var(--text);
+            cursor: pointer;
+            line-height: 1.3;
+        }
+        .filter-option-row input[type="radio"] {
+            margin: 0;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+        .filter-popover-footer {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border);
+        }
+        .filter-reset-btn {
+            background: #2c3e50;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.15s ease;
+        }
+        .filter-reset-btn:hover {
+            background: #34495e;
+        }
+        .empty-state-reset-btn {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .empty-state-reset-btn:hover {
+            background: #1d4ed8;
+        }
+        .filter-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background-color: #60a5fa;
+            border-radius: 50%;
+            margin-left: 5px;
+            vertical-align: middle;
+        }
+        .filter-dot.hidden {
+            display: none;
+        }
+        .model-count-indicator {
+            font-size: 12px;
+            color: #888;
+            font-weight: 500;
+            margin-left: 6px;
+            white-space: nowrap;
+        }
+
         body.desktop-view .table-wrapper {
             min-width: 1200px;
         }
@@ -307,11 +428,28 @@
 
 <div class="table-actions-bar">
     <button id="desktop-toggle-fab" title="Toggle Desktop View">🖥️</button>
-    <button id="filter-btn" disabled title="Filter models (coming soon)">Filter</button>
+    <div class="filter-btn-container">
+        <button id="filter-btn" disabled title="Refresh provider data to enable filtering across models." aria-haspopup="true" aria-expanded="false">
+            Filter <span id="filter-active-dot" class="filter-dot hidden">•</span>
+        </button>
+        <div id="filter-popover" class="filter-popover hidden" role="region" aria-labelledby="filter-popover-title">
+            <div class="filter-popover-header">
+                <span id="filter-popover-title" class="filter-title">Filter Models</span>
+                <button id="filter-close-btn" class="close-btn" aria-label="Close filters">&times;</button>
+            </div>
+            <div id="filter-popover-body" class="filter-popover-body">
+                <!-- Dynamically generated controls -->
+            </div>
+            <div class="filter-popover-footer">
+                <button id="filter-reset-btn" class="filter-reset-btn">Reset to Default</button>
+            </div>
+        </div>
+    </div>
+    <span id="model-count-indicator" class="model-count-indicator"></span>
 </div>
 
 <script type="module">
-    import { fetchData, refreshRefusalRates, PROVIDER_REGISTRY, runProviderPipeline } from './core.js?v=0F';
+    import { fetchData, refreshRefusalRates, PROVIDER_REGISTRY, runProviderPipeline, sortModelsForColumn, DEFAULT_FILTER_STATE, FILTER_DEFINITIONS, applyModelFilters } from './core.js?v=0I';
 
     const browserStorageAdapter = {
         getItem: (key) => localStorage.getItem(key),
@@ -322,8 +460,10 @@
     const appState = {
         activeProvider: browserStorageAdapter.getItem('active_provider') || 'openrouter',
         rankedColumns: [[], [], [], [], [], []],
-        expanded: { rowIndex: null, colIndex: null },
+        expanded: { modelId: null, colIndex: null },
         parsedModels: [],
+        displayModels: [],
+        filterState: { ...DEFAULT_FILTER_STATE },
         isFetching: false,
         isFetchingRates: false
     };
@@ -374,8 +514,229 @@
         });
     }
 
+    // --- FILTER ENGINE & POPOVER CONTROLS ---
+    const filterBtn = document.getElementById('filter-btn');
+    const filterPopover = document.getElementById('filter-popover');
+    const filterCloseBtn = document.getElementById('filter-close-btn');
+    const filterResetBtn = document.getElementById('filter-reset-btn');
+
+    function getCachedRichModels(providerId) {
+        const raw = browserStorageAdapter.getItem(`cached_richModels_${providerId}`);
+        if (!raw) return null;
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function getProviderFilterState(providerId) {
+        const saved = browserStorageAdapter.getItem(`filterState_${providerId}`);
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                if (parsed && typeof parsed === 'object') {
+                    return {
+                        free: parsed.free || DEFAULT_FILTER_STATE.free,
+                        is_chat: parsed.is_chat || DEFAULT_FILTER_STATE.is_chat
+                    };
+                }
+            } catch (e) {}
+        }
+        return { ...DEFAULT_FILTER_STATE };
+    }
+
+    function setProviderFilterState(providerId, state) {
+        try {
+            browserStorageAdapter.setItem(`filterState_${providerId}`, JSON.stringify(state));
+        } catch (e) {
+            console.warn('Failed to persist filterState:', e);
+        }
+    }
+
+    function isFilterDefault(state) {
+        return state.free === DEFAULT_FILTER_STATE.free && state.is_chat === DEFAULT_FILTER_STATE.is_chat;
+    }
+
+    function updateFilterActiveDot() {
+        const dot = document.getElementById('filter-active-dot');
+        if (!dot) return;
+        if (isFilterDefault(appState.filterState)) {
+            dot.classList.add('hidden');
+        } else {
+            dot.classList.remove('hidden');
+        }
+    }
+
+    function updateFilterButtonState() {
+        if (!filterBtn) return;
+        const richModels = getCachedRichModels(appState.activeProvider);
+        if (!richModels) {
+            filterBtn.disabled = true;
+            filterBtn.title = "Refresh provider data to enable filtering across models.";
+            closeFilterPopover();
+        } else if (richModels.length === 0) {
+            filterBtn.disabled = true;
+            filterBtn.title = "No models available to filter for this provider.";
+            closeFilterPopover();
+        } else {
+            filterBtn.disabled = false;
+            filterBtn.title = "Filter models";
+        }
+    }
+
+    function updateModelCountIndicator() {
+        const indicator = document.getElementById('model-count-indicator');
+        if (!indicator) return;
+        const richModels = getCachedRichModels(appState.activeProvider);
+        if (!richModels) {
+            indicator.innerText = "No models cached (refresh required)";
+        } else if (richModels.length === 0) {
+            indicator.innerText = "Showing 0 of 0 models (Provider catalog empty)";
+        } else {
+            const M = richModels.length;
+            const N = appState.displayModels ? appState.displayModels.length : 0;
+            if (N > 0) {
+                indicator.innerText = `Showing ${N} of ${M} models`;
+            } else {
+                indicator.innerText = `Showing 0 of ${M} models (Filters exclude all models)`;
+            }
+        }
+    }
+
+    function buildFilterPopoverDOM() {
+        const container = document.getElementById('filter-popover-body');
+        if (!container) return;
+        container.innerHTML = '';
+
+        FILTER_DEFINITIONS.forEach(def => {
+            const sec = document.createElement('div');
+            sec.className = 'filter-section';
+
+            const title = document.createElement('div');
+            title.className = 'filter-section-title';
+            title.innerText = def.label;
+            sec.appendChild(title);
+
+            def.options.forEach(opt => {
+                const row = document.createElement('label');
+                row.className = 'filter-option-row';
+
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.name = `filter-${def.id}`;
+                radio.value = opt.value;
+                radio.checked = (appState.filterState[def.id] === opt.value);
+
+                radio.addEventListener('change', () => {
+                    if (radio.checked) {
+                        appState.filterState[def.id] = opt.value;
+                        setProviderFilterState(appState.activeProvider, appState.filterState);
+                        updateFilterActiveDot();
+                        applyActiveFiltersAndRender();
+                    }
+                });
+
+                const span = document.createElement('span');
+                span.innerText = opt.label;
+
+                row.appendChild(radio);
+                row.appendChild(span);
+                sec.appendChild(row);
+            });
+
+            container.appendChild(sec);
+        });
+    }
+
+    function syncFilterPopoverControls() {
+        FILTER_DEFINITIONS.forEach(def => {
+            const val = appState.filterState[def.id];
+            const radios = document.querySelectorAll(`input[name="filter-${def.id}"]`);
+            radios.forEach(r => {
+                r.checked = (r.value === val);
+            });
+        });
+    }
+
+    function openFilterPopover() {
+        if (!filterBtn || filterBtn.disabled) return;
+        filterPopover.classList.remove('hidden');
+        filterBtn.setAttribute('aria-expanded', 'true');
+        const checkedRadio = filterPopover.querySelector('input[type="radio"]:checked') || filterCloseBtn;
+        if (checkedRadio) checkedRadio.focus();
+    }
+
+    function closeFilterPopover() {
+        if (filterPopover && !filterPopover.classList.contains('hidden')) {
+            filterPopover.classList.add('hidden');
+            if (filterBtn) {
+                filterBtn.setAttribute('aria-expanded', 'false');
+                if (filterPopover.contains(document.activeElement)) {
+                    filterBtn.focus();
+                }
+            }
+        }
+    }
+
+    function toggleFilterPopover() {
+        if (!filterPopover) return;
+        if (filterPopover.classList.contains('hidden')) {
+            openFilterPopover();
+        } else {
+            closeFilterPopover();
+        }
+    }
+
+    function applyActiveFiltersAndRender() {
+        const richModels = getCachedRichModels(appState.activeProvider) || appState.parsedModels;
+        appState.displayModels = applyModelFilters(richModels, appState.filterState);
+
+        for (let c = 0; c < 6; c++) {
+            appState.rankedColumns[c] = sortModelsForColumn(appState.displayModels, c);
+        }
+
+        renderTable();
+        updateModelCountIndicator();
+        updateFilterActiveDot();
+    }
+
+    function handleFilterReset() {
+        // Step 1: Reset in-memory filter state to defaults
+        appState.filterState = { ...DEFAULT_FILTER_STATE };
+
+        // Step 2: Persist default state to storage with quota protection
+        setProviderFilterState(appState.activeProvider, appState.filterState);
+
+        // Step 3: Synchronize popover UI radio controls
+        syncFilterPopoverControls();
+
+        // Step 4: Hide active filter dot indicator
+        updateFilterActiveDot();
+
+        // Step 5: Re-filter rich models into displayModels
+        const richModels = getCachedRichModels(appState.activeProvider) || appState.parsedModels;
+        appState.displayModels = applyModelFilters(richModels, appState.filterState);
+
+        // Step 6: Re-rank matrix columns
+        for (let c = 0; c < 6; c++) {
+            appState.rankedColumns[c] = sortModelsForColumn(appState.displayModels, c);
+        }
+
+        // Step 7: Update counter indicator
+        updateModelCountIndicator();
+
+        // Step 8: Re-render table
+        renderTable();
+
+        // Post-condition: Popover remains open for visual confirmation
+    }
+
     function updateProviderUI() {
+        appState.expanded = { modelId: null, colIndex: null };
         const p = PROVIDER_REGISTRY[appState.activeProvider] || PROVIDER_REGISTRY.openrouter;
+        closeFilterPopover();
         
         // Highlight active item in side panel
         document.querySelectorAll('.provider-item').forEach(el => {
@@ -406,45 +767,68 @@
             keyLink.href = p.keyUrl || '#';
         }
 
-        // Alternative 4: Hide Refusal Rates button for non-OpenRouter providers
+        // Hide Refusal Rates button for non-OpenRouter providers
         if (refusalBtn) {
             refusalBtn.style.display = (p.id === 'openrouter') ? '' : 'none';
         }
 
-        // Alternative 2: Load provider-scoped cached data
-        let cachedRanked, cachedParsed;
-        if (p.id === 'openrouter') {
-            cachedRanked = browserStorageAdapter.getItem('cached_rankedColumns_openrouter') || browserStorageAdapter.getItem('cached_rankedColumns');
-            cachedParsed = browserStorageAdapter.getItem('cached_parsedModels_openrouter') || browserStorageAdapter.getItem('cached_parsedModels');
-        } else {
-            cachedRanked = browserStorageAdapter.getItem(`cached_rankedColumns_${p.id}`);
-            cachedParsed = browserStorageAdapter.getItem(`cached_parsedModels_${p.id}`);
-        }
+        // Load provider filter state
+        appState.filterState = getProviderFilterState(p.id);
 
-        if (cachedRanked && cachedParsed) {
-            try {
-                appState.rankedColumns = JSON.parse(cachedRanked);
-                appState.parsedModels = JSON.parse(cachedParsed);
-                renderTable();
-                document.getElementById('status').innerText = `Viewing cached ${p.name} data.`;
-            } catch(e) {
+        // Check cached rich models
+        const richModels = getCachedRichModels(p.id);
+
+        if (richModels) {
+            appState.parsedModels = richModels;
+            appState.displayModels = applyModelFilters(richModels, appState.filterState);
+            for (let c = 0; c < 6; c++) {
+                appState.rankedColumns[c] = sortModelsForColumn(appState.displayModels, c);
+            }
+            renderTable();
+            document.getElementById('status').innerText = `Viewing cached ${p.name} data.`;
+        } else {
+            // Fallback to legacy cached_rankedColumns / cached_parsedModels if richModels absent
+            let cachedRanked, cachedParsed;
+            if (p.id === 'openrouter') {
+                cachedRanked = browserStorageAdapter.getItem('cached_rankedColumns_openrouter') || browserStorageAdapter.getItem('cached_rankedColumns');
+                cachedParsed = browserStorageAdapter.getItem('cached_parsedModels_openrouter') || browserStorageAdapter.getItem('cached_parsedModels');
+            } else {
+                cachedRanked = browserStorageAdapter.getItem(`cached_rankedColumns_${p.id}`);
+                cachedParsed = browserStorageAdapter.getItem(`cached_parsedModels_${p.id}`);
+            }
+
+            if (cachedRanked && cachedParsed) {
+                try {
+                    appState.rankedColumns = JSON.parse(cachedRanked);
+                    appState.parsedModels = JSON.parse(cachedParsed);
+                    appState.displayModels = appState.parsedModels;
+                    renderTable();
+                    document.getElementById('status').innerText = `Viewing cached ${p.name} data.`;
+                } catch(e) {
+                    appState.rankedColumns = [[], [], [], [], [], []];
+                    appState.parsedModels = [];
+                    appState.displayModels = [];
+                    renderTable();
+                }
+            } else {
                 appState.rankedColumns = [[], [], [], [], [], []];
                 appState.parsedModels = [];
+                appState.displayModels = [];
                 renderTable();
-            }
-        } else {
-            appState.rankedColumns = [[], [], [], [], [], []];
-            appState.parsedModels = [];
-            renderTable();
-            if (p.id === 'openrouter' || p.implemented) {
-                document.getElementById('status').innerText = "Waiting to start...";
-            } else {
-                document.getElementById('status').innerText = `${p.name} integration coming soon in an upcoming milestone.`;
+                if (p.id === 'openrouter' || p.implemented) {
+                    document.getElementById('status').innerText = "Waiting to start...";
+                } else {
+                    document.getElementById('status').innerText = `${p.name} integration coming soon in an upcoming milestone.`;
+                }
             }
         }
 
         updateKeyIndicators();
         updateSidebarBadges();
+        updateFilterButtonState();
+        updateModelCountIndicator();
+        updateFilterActiveDot();
+        syncFilterPopoverControls();
     }
 
     // --- DOM MANIPULATION ---
@@ -473,7 +857,20 @@
         const tbody = document.getElementById('table-body');
         const thead = document.getElementById('table-head').querySelector('tr');
         
-        if (appState.expanded.rowIndex !== null) {
+        let activeExpRowIndex = null;
+        if (appState.expanded.modelId !== null && appState.expanded.colIndex !== null) {
+            const col = appState.rankedColumns[appState.expanded.colIndex] || [];
+            const foundIdx = col.findIndex(m => m && m.id === appState.expanded.modelId);
+            if (foundIdx !== -1) {
+                activeExpRowIndex = foundIdx;
+            } else {
+                // Parent model filtered out: auto-collapse expansion immediately
+                appState.expanded = { modelId: null, colIndex: null };
+            }
+        }
+        const isExpandedActive = (activeExpRowIndex !== null);
+
+        if (isExpandedActive) {
             if (thead.children.length === 6) {
                 const thMod = document.createElement('th'); thMod.innerText = 'Modalities';
                 const thUp = document.createElement('th'); thUp.innerText = 'Uptime';
@@ -504,15 +901,15 @@
                 const model = appState.rankedColumns[c][r];
                 
                 if (model) {
-                    const isExpanded = (appState.expanded.rowIndex === r && appState.expanded.colIndex === c);
-                    const btnText = isExpanded ? 'Collapse' : 'Extend';
+                    const isCellExpanded = (isExpandedActive && activeExpRowIndex === r && appState.expanded.colIndex === c);
+                    const btnText = isCellExpanded ? 'Collapse' : 'Extend';
                     const valToDisplay = getPrimaryVal(model, c);
                     
                     td.innerHTML = `
                         <span class="model-name">${model.name}</span>
                         <div class="cell-footer">
                             <span class="primary-val">${valToDisplay}</span>
-                            <button class="extend-btn" onclick="toggleExtend(${r}, ${c})">${btnText}</button>
+                            <button class="extend-btn" data-row="${r}" data-col="${c}">${btnText}</button>
                         </div>
                     `;
                 } else {
@@ -522,7 +919,7 @@
             }
             frag.appendChild(tr);
 
-            if (appState.expanded.rowIndex === r) {
+            if (isExpandedActive && activeExpRowIndex === r) {
                 const expModel = appState.rankedColumns[appState.expanded.colIndex][r];
                 if (expModel) {
                     const extTr = document.createElement('tr');
@@ -551,19 +948,48 @@
             }
         }
 
+        const richModels = getCachedRichModels(appState.activeProvider);
+        if (maxRows === 0 && richModels && richModels.length > 0) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td colspan="6" style="text-align: center; padding: 32px 16px; color: #aaa;">
+                    <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">No models match active filters</div>
+                    <div style="font-size: 12px; color: #777; margin-bottom: 12px;">Try adjusting your pricing or task type criteria.</div>
+                    <button id="empty-state-reset-btn" class="empty-state-reset-btn">Reset to Default</button>
+                </td>
+            `;
+            const emptyResetBtn = tr.querySelector('#empty-state-reset-btn');
+            if (emptyResetBtn) {
+                emptyResetBtn.addEventListener('click', handleFilterReset);
+            }
+            frag.appendChild(tr);
+        }
+
         tbody.innerHTML = '';
         tbody.appendChild(frag);
     }
 
     // --- INTERACTIONS ---
-    window.toggleExtend = function(r, c) {
-        if (appState.expanded.rowIndex === r && appState.expanded.colIndex === c) {
-            appState.expanded = { rowIndex: null, colIndex: null };
+    function toggleExtend(r, c) {
+        const model = appState.rankedColumns[c]?.[r];
+        if (!model) return;
+        
+        if (appState.expanded.modelId === model.id && appState.expanded.colIndex === c) {
+            appState.expanded = { modelId: null, colIndex: null };
         } else {
-            appState.expanded = { rowIndex: r, colIndex: c };
+            appState.expanded = { modelId: model.id, colIndex: c };
         }
         renderTable();
-    };
+    }
+
+    document.getElementById('table-body').addEventListener('click', (e) => {
+        const btn = e.target.closest('.extend-btn');
+        if (!btn) return;
+        const r = parseInt(btn.dataset.row, 10);
+        const c = parseInt(btn.dataset.col, 10);
+        if (isNaN(r) || isNaN(c)) return;
+        toggleExtend(r, c);
+    });
 
     function showError(err) {
         const errMsg = err.message || 'Unknown Error';
@@ -581,6 +1007,7 @@
     const backdrop = document.getElementById('side-panel-backdrop');
 
     function openSidePanel() {
+        closeFilterPopover();
         sidePanel.classList.add('open');
         backdrop.classList.add('open');
     }
@@ -634,7 +1061,13 @@
                 ? await fetchData(apiKey, browserStorageAdapter)
                 : await runProviderPipeline(currentP, apiKey, browserStorageAdapter);
             appState.parsedModels = res.parsedModels;
-            appState.rankedColumns = res.rankedColumns;
+            
+            const richModels = getCachedRichModels(currentP) || res.richModels || res.parsedModels;
+            appState.displayModels = applyModelFilters(richModels, appState.filterState);
+            
+            for (let c = 0; c < 6; c++) {
+                appState.rankedColumns[c] = sortModelsForColumn(appState.displayModels, c);
+            }
             
             browserStorageAdapter.setItem('cached_parsedModels', JSON.stringify(appState.parsedModels));
             browserStorageAdapter.setItem('cached_rankedColumns', JSON.stringify(appState.rankedColumns));
@@ -642,6 +1075,10 @@
             browserStorageAdapter.setItem(`cached_rankedColumns_${currentP}`, JSON.stringify(appState.rankedColumns));
             
             renderTable();
+            updateFilterButtonState();
+            updateModelCountIndicator();
+            updateFilterActiveDot();
+            syncFilterPopoverControls();
             document.getElementById('status').innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
         } catch (e) {
             console.error(e);
@@ -675,7 +1112,25 @@
         try {
             const res = await refreshRefusalRates(apiKey, appState.parsedModels, browserStorageAdapter);
             appState.parsedModels = res.parsedModels;
-            appState.rankedColumns = res.rankedColumns;
+            
+            const richModels = getCachedRichModels('openrouter');
+            if (richModels) {
+                richModels.forEach(m => {
+                    if (res.refusalRates && res.refusalRates[m.id] !== undefined) {
+                        m.refusal_rate = res.refusalRates[m.id];
+                    }
+                });
+                try {
+                    browserStorageAdapter.setItem('cached_richModels_openrouter', JSON.stringify(richModels));
+                } catch(e) {}
+                appState.displayModels = applyModelFilters(richModels, appState.filterState);
+            } else {
+                appState.displayModels = applyModelFilters(appState.parsedModels, appState.filterState);
+            }
+
+            for (let c = 0; c < 6; c++) {
+                appState.rankedColumns[c] = sortModelsForColumn(appState.displayModels, c);
+            }
             
             browserStorageAdapter.setItem('cached_parsedModels', JSON.stringify(appState.parsedModels));
             browserStorageAdapter.setItem('cached_rankedColumns', JSON.stringify(appState.rankedColumns));
@@ -683,6 +1138,7 @@
             browserStorageAdapter.setItem('cached_rankedColumns_openrouter', JSON.stringify(appState.rankedColumns));
             
             renderTable();
+            updateModelCountIndicator();
             document.getElementById('status').innerText = `Refusal rates updated: ${new Date().toLocaleTimeString()}`;
         } catch(e) {
             console.error(e);
@@ -737,7 +1193,37 @@
         }
     });
 
+    // --- FILTER POPOVER EVENTS ---
+    if (filterBtn) {
+        filterBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleFilterPopover();
+        });
+    }
+
+    if (filterCloseBtn) {
+        filterCloseBtn.addEventListener('click', closeFilterPopover);
+    }
+
+    if (filterResetBtn) {
+        filterResetBtn.addEventListener('click', handleFilterReset);
+    }
+
+    document.addEventListener('pointerdown', (e) => {
+        const container = document.querySelector('.filter-btn-container');
+        if (container && !container.contains(e.target)) {
+            closeFilterPopover();
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeFilterPopover();
+        }
+    });
+
     // --- INITIALIZATION ---
+    buildFilterPopoverDOM();
     updateProviderUI();
     updateSidebarBadges();
 
@@ -754,6 +1240,7 @@
 
     // Desktop View Toggle Logic
     document.getElementById('desktop-toggle-fab').addEventListener('click', function() {
+        closeFilterPopover();
         const isDesktop = document.body.classList.toggle('desktop-view');
         if (isDesktop) {
             const scale = window.innerWidth / 1200;
@@ -771,6 +1258,13 @@
 
     // PWA Service Worker Registration
     if ('serviceWorker' in navigator) {
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!refreshing) {
+                refreshing = true;
+                window.location.reload();
+            }
+        });
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js').catch(err => {
                 console.warn('SW registration failed:', err);
